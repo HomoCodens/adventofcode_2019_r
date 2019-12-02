@@ -6,7 +6,9 @@ day2 <- function(path) {
            "99" = NULL)
   }
 
-  tape <- as.numeric(strsplit(readLines(path), ",")[[1]])
+  initial_tape <- as.numeric(strsplit(readLines(path), ",")[[1]])
+
+  tape <- initial_tape
 
   # restore 1202 error state
   tape[2] <- 12
@@ -21,4 +23,32 @@ day2 <- function(path) {
 
   message(paste(tape, collapse = ", "))
   message(tape[1])
+
+  # The Eagle has landed =)
+  expected_output <- 19690720
+  done <- FALSE
+
+  for(noun in 0:99) {
+    for(verb in 0:99) {
+      tape <- initial_tape
+      tape[2] <- noun
+      tape[3] <- verb
+
+      pos <- 1
+      while(!is.null(result <- microcode(tape[pos], tape[tape[pos + 1] + 1], tape[tape[pos + 2] + 1]))) {
+        tape[tape[pos + 3] + 1] <- result
+        pos <- pos + 4
+      }
+
+      if(tape[1] == expected_output) {
+        message(sprintf("noun: %d, verb: %d\n100*noun + verb: %d", noun, verb, 100*noun + verb))
+        done <- TRUE;
+        break;
+      }
+    }
+
+    if(done) {
+      break;
+    }
+  }
 }
