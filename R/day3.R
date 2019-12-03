@@ -27,7 +27,7 @@ day3 <- function(path) {
                list(
                  coords = data.frame(
                    x = x,
-                   y = reverse(yout:(y - 1))
+                   y = rev(yout:(y - 1))
                  ),
                  x = xout,
                  y = yout
@@ -50,7 +50,7 @@ day3 <- function(path) {
                yout <- y
                list(
                  coords = data.frame(
-                   x = reverse(xout:(x + 1)),
+                   x = rev(xout:(x - 1)),
                    y = yout
                  ),
                  x = xout,
@@ -75,7 +75,7 @@ day3 <- function(path) {
       y = 0
     )
 
-    rbindlist(coords)[, id := id]
+    rbindlist(coords)[, id := id][, timeToReach := c(1:(.N-1), 0)]
   }
 
   wire_coords <- data.table()
@@ -83,5 +83,12 @@ day3 <- function(path) {
     wire_coords <- rbind(wire_coords, parseWire(wires[i], i))
   }
 
+  crossings <- wire_coords[duplicated(wire_coords, by = c("x", "y")) & !duplicated(wire_coords), .(x, y)]
+  crossings <- merge(crossings, wire_coords, by = c("x", "y"))
+  crossings <- crossings[, manhattanDist := abs(x) + abs(y)][manhattanDist > 0]
+  solution1 <- crossings[, min(manhattanDist)]
+  message(sprintf("The crossing closest to the origin is %d away", solution1))
 
+  solution2 <- crossings[, .(timeToReachBoth = sum(timeToReach)), by = c("x", "y")][, min(timeToReachBoth)]
+  message(sprintf("The timing-optimal crossing is %d", solution2))
 }
