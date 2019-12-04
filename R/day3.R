@@ -83,7 +83,7 @@ day3 <- function(path) {
     wire_coords <- rbind(wire_coords, parseWire(wires[i], i))
   }
 
-  crossings <- wire_coords[duplicated(wire_coords, by = c("x", "y")) & !duplicated(wire_coords), .(x, y)]
+  crossings <- wire_coords[duplicated(wire_coords, by = c("x", "y")) & !duplicated(wire_coords, by = c("x", "y", "id")), .(x, y)]
   crossings <- merge(crossings, wire_coords, by = c("x", "y"))
   crossings <- crossings[, manhattanDist := abs(x) + abs(y)][manhattanDist > 0]
   solution1 <- crossings[, min(manhattanDist)]
