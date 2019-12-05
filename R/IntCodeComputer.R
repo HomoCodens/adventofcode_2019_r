@@ -55,81 +55,118 @@ advanceState <- function(state,
   tape <- state$tape
   pos <- state$pos
 
-  # Let's assume there are no more than 3 parameters
-  # Easy to extend anyway
-  nParams <- 3
-  instruction <- tapeGet(tape, pos)
-  opcode <- instruction %% 100
-  paramModes <- rev(((instruction %/% 100) %% 10^(nParams:1)) %/% 10^((nParams-1):0))
-
   debug(sprintf("Head at %d", pos), 3)
+  instruction <- tapeGet(tape, pos)
   debug(sprintf("Got instruction %d", instruction), 4)
-  debug(sprintf("Param modes: %s", paste(paramModes, collapse = ",")), 4)
+  opcode <- instruction %% 100
   debug(sprintf("Executing opCode %d", opcode), 1)
 
-  out <- switch(
-    # Oh R, you silly stupid language, you...
-    # Cast the opcode as character because otherwise multi-digit codes won't work
-    as.character(opcode),
-    "1" = {
-      debug(paste(tapeGet(tape, pos:(pos + 3)), collapse = ","), 2)
+  if(opcode == 99) {
+    debug("HALT!!!", 1)
+    state$halt <- TRUE
+    state
+  } else {
+    opcodeNParams <- c(
+      3,
+      3,
+      1,
+      1,
+      2,
+      2,
+      3,
+      3
+    )
 
-      list(
-        tape = tapeSet(
-          tape,
-          tapeGet(tape, pos + 3),
-          tapeGet(tape,
-                  tapeGet(tape, pos + 1, paramModes[1])) +
-            tapeGet(tape,
-                    tapeGet(tape, pos + 2, paramModes[2]))),
-        pos = pos + 4,
-        halt = FALSE
-      )
-    },
-    "2" = {
-      debug(paste(tapeGet(tape, pos:(pos + 3)), collapse = ","), 2)
+    nParams <- opcodeNParams[opcode]
+    paramModes <- rev(((instruction %/% 100) %% 10^(nParams:1)) %/% 10^((nParams-1):0))
+    debug(sprintf("Param modes: %s", paste(paramModes, collapse = ",")), 4)
 
-      list(
-        tape = tapeSet(
-          tape,
-          tapeGet(tape, pos + 3),
-          tapeGet(tape,
-                  tapeGet(tape, pos + 1, paramModes[1])) *
-            tapeGet(tape,
-                    tapeGet(tape, pos + 2, paramModes[2]))),
-        pos = pos + 4,
-        halt = FALSE
-      )
-    },
-    "3" = {
-      debug(paste(tapeGet(tape, pos:(pos + 1)), collapse = ","), 2)
 
-      list(
-        tape = tapeSet(
-          tape,
-          tapeGet(tape, pos + 1, paramModes[1]),
-          iccin()), # I'm giggling like a stupid person here ^^
-        pos = pos + 2,
-        halt = FALSE
-      )
-    },
-    "4" = {
-      debug(paste(tapeGet(tape, pos:(pos + 1)), collapse = ","), 2)
+    paramIdx <- ((pos + 1):(pos + nParams))
+    debug(paste0("params at: ", paste(paramIdx, collapse = ",")), 4)
+    params <- tapeGet(tape, paramIdx)
+    debug(paste0("params: ", paste(params, collapse = ",")), 2)
+    args <- tapeGet(tape, params, paramModes)
+    debug(paste0("args: ", paste(args, collapse = ",")), 2)
 
-      iccout(tapeGet(tape, tapeGet(tape, pos + 1, paramModes[1])))
-      state$pos <- pos + 2
-      state
-    },
-    "99" = {
-      list(
-        tape = tape,
-        pos = pos + 1,
-        halt = TRUE
-      )
-    }
-  )
+    switch(
+      # Oh R, you silly stupid language, you...
+      # Cast the opcode as character because otherwise multi-digit codes won't work
+      as.character(opcode),
+      "1" = {
+        debug(sprintf("%d + %d -> %d", args[1], args[2], params[3]), 2)
 
-  out
+        list(
+          tape = tapeSet(
+            tape,
+            params[3],
+            args[1] + args[2]),
+          pos = pos + 4,
+          halt = FALSE
+        )
+      },
+      "2" = {
+        debug(sprintf("%d * %d -> %d", args[1], args[2], params[3]), 2)
+
+        list(
+          tape = tapeSet(
+            tape,
+            params[3],
+            args[1] * args[2]),
+          pos = pos + 4,
+          halt = FALSE
+        )
+      },
+      "3" = {
+        value <- iccin()  # I'm giggling like a stupid person here ^^
+        debug(sprintf("Read value %d -> %d", value, params[1]), 2)
+        list(
+          tape = tapeSet(
+            tape,
+            params[1],
+            value),
+          pos = pos + 2,
+          halt = FALSE
+        )
+      },
+      "4" = {
+        debug(sprintf("Writing %d to iccout", args[1]), 2)
+        iccout(args[1])
+        state$pos <- pos + 2
+        state
+      },
+      "5" = {
+        debug(sprintf("Checking whether %d != 0", args[1]), 2)
+        state$pos <- ifelse(args[1] != 0, args[2], pos + 3)
+        state
+      },
+      "6" = {
+        debug(sprintf("Checking whether %d == 0", args[1]), 2)
+        state$pos <- ifelse(args[1] == 0, args[2], pos + 3)
+        state
+      },
+      "7" = {
+        debug(sprintf("%d < %d -> %d", args[1], args[2], params[3]), 2)
+        list(
+          tape = tapeSet(tape,
+                         params[3],
+                         ifelse(args[1] < args[2], 1, 0)),
+          pos = pos + 4,
+          halt = FALSE
+        )
+      },
+      "8" = {
+        debug(sprintf("%d == %d -> %d", args[1], args[2], params[3]), 2)
+        list(
+          tape = tapeSet(tape,
+                         params[3],
+                         ifelse(args[1] == args[2], 1, 0)),
+          pos = pos + 4,
+          halt = FALSE
+        )
+      }
+    )
+  }
 }
 
 # Tape wrappers -----------------------------------------------------------
@@ -145,12 +182,9 @@ advanceState <- function(state,
 #' @param mode
 #'
 #' @return The value at address on tape
-tapeGet <- function(tape, parameter, mode = 0) {
-  if(mode == 0) {
-    tape[parameter + 1]
-  } else {
-    parameter
-  }
+tapeGet <- function(tape, parameters, modes = numeric(length(parameters))) {
+  # That's cheating a little but there should not be any negative params with mode == 0
+  ifelse(modes == 0, tape[abs(parameters) + 1], parameters)
 }
 
 #' Store value on a tape
