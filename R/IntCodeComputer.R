@@ -9,6 +9,13 @@ runIntCodeComputer <- function(tape,
                                stdout = function(x){},
                                pos = 0,
                                debug = 0) {
+
+  debugFcn <- function(x, level) {
+    if(level <= debug) {
+      print(x)
+    }
+  }
+
   if(!is.null(noun)) {
     tape <- tapeSet(tape, 0, noun)
   }
@@ -26,11 +33,9 @@ runIntCodeComputer <- function(tape,
 
   # Because fun ;P
   while({
-    state <- advanceState(state, stdin, stdout)
+    state <- advanceState(state, stdin, stdout, debugFcn)
 
-    if(debug > 1) {
-      print(state)
-    }
+    debugFcn(state, 5)
 
     !state$halt
   }){
@@ -41,10 +46,10 @@ runIntCodeComputer <- function(tape,
 
 advanceState <- function(state,
                          stdin,
-                         stdout) {
+                         stdout,
+                         debug) {
   tape <- state$tape
   pos <- state$pos
-  debug <- state$debug
 
   # Let's assume there are no more than 3 parameters
   # Easy to extend anyway
@@ -54,10 +59,8 @@ advanceState <- function(state,
   paramModes <- ((instruction %/% 100) %% 10^(nParams:1)) %/% 10^((nParams-1):0)
 
 
-  if(debug > 0) {
-    message(sprintf("Got instruction %d", instruction))
-    message(sprintf("Executing opCode %d", opcode))
-  }
+  debug(sprintf("Got instruction %d", instruction), 1)
+  debug(sprintf("Executing opCode %d", opcode), 1)
 
   out <- switch(
     # Oh R, you silly stupid language, you...
@@ -112,8 +115,6 @@ advanceState <- function(state,
       )
     }
   )
-
-  out$debug <- debug
 
   out
 }
