@@ -60,7 +60,7 @@ advanceState <- function(state,
   nParams <- 3
   instruction <- tapeGet(tape, pos)
   opcode <- instruction %% 100
-  paramModes <- ((instruction %/% 100) %% 10^(nParams:1)) %/% 10^((nParams-1):0)
+  paramModes <- rev(((instruction %/% 100) %% 10^(nParams:1)) %/% 10^((nParams-1):0))
 
   debug(sprintf("Head at %d", pos), 3)
   debug(sprintf("Got instruction %d", instruction), 4)
@@ -79,9 +79,9 @@ advanceState <- function(state,
           tape,
           tapeGet(tape, pos + 3),
           tapeGet(tape,
-                  tapeGet(tape, pos + 1, paramModes[nParams])) +
+                  tapeGet(tape, pos + 1, paramModes[1])) +
             tapeGet(tape,
-                    tapeGet(tape, pos + 2, paramModes[nParams - 1]))),
+                    tapeGet(tape, pos + 2, paramModes[2]))),
         pos = pos + 4,
         halt = FALSE
       )
@@ -94,9 +94,9 @@ advanceState <- function(state,
           tape,
           tapeGet(tape, pos + 3),
           tapeGet(tape,
-                  tapeGet(tape, pos + 1, paramModes[nParams])) *
+                  tapeGet(tape, pos + 1, paramModes[1])) *
             tapeGet(tape,
-                    tapeGet(tape, pos + 2, paramModes[nParams - 1]))),
+                    tapeGet(tape, pos + 2, paramModes[2]))),
         pos = pos + 4,
         halt = FALSE
       )
@@ -107,7 +107,7 @@ advanceState <- function(state,
       list(
         tape = tapeSet(
           tape,
-          tapeGet(tape, pos + 1, paramModes[nParams]),
+          tapeGet(tape, pos + 1, paramModes[1]),
           iccin()), # I'm giggling like a stupid person here ^^
         pos = pos + 2,
         halt = FALSE
@@ -116,7 +116,7 @@ advanceState <- function(state,
     "4" = {
       debug(paste(tapeGet(tape, pos:(pos + 1)), collapse = ","), 2)
 
-      iccout(tapeGet(tape, tapeGet(tape, pos + 1, paramModes[nParams])))
+      iccout(tapeGet(tape, tapeGet(tape, pos + 1, paramModes[1])))
       state$pos <- pos + 2
       state
     },
