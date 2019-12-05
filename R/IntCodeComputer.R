@@ -5,14 +5,18 @@
 runIntCodeComputer <- function(tape,
                                noun = NULL,
                                verb = NULL,
-                               stdin = function(){0},
-                               stdout = function(x){},
+                               iccin = function(){0},
+                               iccout = function(x){},
                                pos = 0,
                                debug = 0) {
 
   debugFcn <- function(x, level) {
     if(level <= debug) {
-      print(x)
+      if(is.character(x)) {
+        message(x)
+      } else {
+        print(x)
+      }
     }
   }
 
@@ -33,9 +37,9 @@ runIntCodeComputer <- function(tape,
 
   # Because fun ;P
   while({
-    state <- advanceState(state, stdin, stdout, debugFcn)
+    state <- advanceState(state, iccin, iccout, debugFcn)
 
-    debugFcn(state, 5)
+    debugFcn(state, 10)
 
     !state$halt
   }){
@@ -45,8 +49,8 @@ runIntCodeComputer <- function(tape,
 }
 
 advanceState <- function(state,
-                         stdin,
-                         stdout,
+                         iccin,
+                         iccout,
                          debug) {
   tape <- state$tape
   pos <- state$pos
@@ -58,8 +62,9 @@ advanceState <- function(state,
   opcode <- instruction %% 100
   paramModes <- ((instruction %/% 100) %% 10^(nParams:1)) %/% 10^((nParams-1):0)
 
-
-  debug(sprintf("Got instruction %d", instruction), 1)
+  debug(sprintf("Head at %d", pos), 3)
+  debug(sprintf("Got instruction %d", instruction), 4)
+  debug(sprintf("Param modes: %s", paste(paramModes, collapse = ",")), 4)
   debug(sprintf("Executing opCode %d", opcode), 1)
 
   out <- switch(
@@ -67,12 +72,14 @@ advanceState <- function(state,
     # Cast the opcode as character because otherwise multi-digit codes won't work
     as.character(opcode),
     "1" = {
+      debug(paste(tapeGet(tape, pos:(pos + 3)), collapse = ","), 2)
+
       list(
         tape = tapeSet(
           tape,
           tapeGet(tape, pos + 3),
           tapeGet(tape,
-                  tapeGet(tape, pos + 1, paramModes[nParams - 2])) +
+                  tapeGet(tape, pos + 1, paramModes[nParams])) +
             tapeGet(tape,
                     tapeGet(tape, pos + 2, paramModes[nParams - 1]))),
         pos = pos + 4,
@@ -80,12 +87,14 @@ advanceState <- function(state,
       )
     },
     "2" = {
+      debug(paste(tapeGet(tape, pos:(pos + 3)), collapse = ","), 2)
+
       list(
         tape = tapeSet(
           tape,
           tapeGet(tape, pos + 3),
           tapeGet(tape,
-                  tapeGet(tape, pos + 1, paramModes[nParams - 2])) *
+                  tapeGet(tape, pos + 1, paramModes[nParams])) *
             tapeGet(tape,
                     tapeGet(tape, pos + 2, paramModes[nParams - 1]))),
         pos = pos + 4,
@@ -93,17 +102,21 @@ advanceState <- function(state,
       )
     },
     "3" = {
+      debug(paste(tapeGet(tape, pos:(pos + 1)), collapse = ","), 2)
+
       list(
         tape = tapeSet(
           tape,
-          tapeGet(tape, pos + 1, paramModes[nParams - 1]),
-          stdin()), # I'm giggling like a stupid person here ^^
+          tapeGet(tape, pos + 1, paramModes[nParams]),
+          iccin()), # I'm giggling like a stupid person here ^^
         pos = pos + 2,
         halt = FALSE
       )
     },
     "4" = {
-      stdout(tapeGet(tape, pos + 1, paramModes[nParams - 1]))
+      debug(paste(tapeGet(tape, pos:(pos + 1)), collapse = ","), 2)
+
+      iccout(tapeGet(tape, tapeGet(tape, pos + 1, paramModes[nParams])))
       state$pos <- pos + 2
       state
     },
