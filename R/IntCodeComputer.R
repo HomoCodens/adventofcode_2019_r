@@ -6,7 +6,7 @@ runIntCodeComputer <- function(tape,
                                noun = NULL,
                                verb = NULL,
                                stdin = function(){0},
-                               stdout = function(){},
+                               stdout = function(x){},
                                pos = 0,
                                debug = 0) {
   if(!is.null(noun)) {
