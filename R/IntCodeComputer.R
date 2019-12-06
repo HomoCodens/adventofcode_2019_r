@@ -1,6 +1,5 @@
 # TODO:
 # * document these
-# * improve debugging (i.e. print current instruction etc.)
 
 runIntCodeComputer <- function(tape,
                                noun = NULL,
@@ -199,4 +198,77 @@ tapeGet <- function(tape, parameters, modes = numeric(length(parameters))) {
 tapeSet <-  function(tape, address, value) {
   tape[address + 1] <- value
   tape
+}
+
+
+#' Create an ICC input "tape"
+#'
+#' Create a function that can be used as an iccin.
+#' If loop is true the values will repeated, if false
+#' the function will throw an error if it is called more
+#' often than there are values to supply
+#'
+#' @param values Values to feed to input
+#' @param loop Should the values repeat?
+iccInput <- function(values, loop = FALSE) {
+  i <- 1
+  nValues <- length(values)
+
+  function() {
+    if(i > nValues) {
+      if(loop) {
+        i <- 1
+      } else {
+        stop(sprintf("Out of values to input!"))
+      }
+    }
+
+    out <- values[i]
+    i <<- i + 1
+
+    out
+  }
+}
+
+#' Collects output values of an ICC
+#'
+#' Because it might come in handy at some point?
+#' The actual output function to be passed to the computer
+#' is in the acc property.
+#'
+#' @param print Should output values be printed as they are received?
+#'
+#' @return An iccOutputAccumulator object
+#' @export
+#'
+#' @examples
+#' o <- iccOutputAccumulator()
+#' o$acc(1)
+#' o$acc(101)
+#' getOutput(o)
+iccOutputAccumulator <- function(print = FALSE) {
+  values <- c()
+
+  out <- list(acc = function(x) {
+    if(print) {
+      message(x)
+    }
+
+    values <<- c(values, x)
+  })
+
+  class(out) <- "iccOutputAccumulator"
+  out
+}
+
+#' Get values from an iccOutputAccumulator
+#'
+#' @param accumulator
+#'
+#' @return A vector of values that were passed to the output function
+#' @export
+#'
+#' @examples
+getOutput <- function(accumulator) {
+  as.list(environment(accumulator$acc))$values
 }
