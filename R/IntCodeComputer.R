@@ -200,6 +200,20 @@ tapeSet <-  function(tape, address, value) {
   tape
 }
 
+iccManualInput <- function() {
+  done <- FALSE
+
+  while(!done) {
+    x <- suppressWarnings(as.numeric(readline("icc> ")))
+    done <- !is.na(x) && as.integer(x) == x
+
+    if(!done) {
+      message("icc> Nope, please enter an integer...")
+    }
+  }
+
+  x
+}
 
 #' Create an ICC input "tape"
 #'
