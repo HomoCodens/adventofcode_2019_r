@@ -10,5 +10,9 @@ License: What license is it under?
 Depends:
   data.table,
   data.tree
+Suggest:
+  testthat
 Encoding: UTF-8
 LazyData: true
+Suggests: 
+    testthat
