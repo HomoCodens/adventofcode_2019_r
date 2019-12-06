@@ -200,6 +200,20 @@ tapeSet <-  function(tape, address, value) {
   tape
 }
 
+iccFileInput <- function(con) {
+  if(!inherits(con, "connection")) {
+    stop("Please provide a file connection")
+  }
+
+  if(!isOpen(con)) {
+    open(con)
+  }
+
+  function() {
+    readLines(con, 1)
+  }
+}
+
 iccManualInput <- function() {
   done <- FALSE
 
