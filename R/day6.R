@@ -30,6 +30,8 @@ day6 <- function(path) {
 
   message(sprintf("There are %d orbits in total.", sum(ToDataFrameTree(COM, "level")$level - 1)))
 
+  message(sprintf("To get to Santa we need %d orbital transfers...", Distance(FindNode(COM, "SAN"), FindNode(COM, "YOU")) - 2))
+
   # COM$Do(function(n) {
   #   n$nOrbits <- Cumulate(n, "nOrbits", sum)
   # }, traversal = "post-order")
