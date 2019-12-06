@@ -45,7 +45,7 @@ runIntCodeComputer <- function(tape,
   }){
   }
 
-  state$tape
+  invisible(state$tape)
 }
 
 advanceState <- function(state,
