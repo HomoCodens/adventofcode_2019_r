@@ -34,17 +34,7 @@ runIntCodeComputer <- function(tape,
     halt = FALSE
   )
 
-  # Because fun ;P
-  while({
-    state <- advanceState(state, iccin, iccout, debugFcn)
-
-    debugFcn(state, 10)
-
-    !state$halt
-  }){
-  }
-
-  invisible(state$tape)
+  advanceState(state, iccin, iccout, debugFcn)
 }
 
 advanceState <- function(state,
@@ -65,6 +55,12 @@ advanceState <- function(state,
     state$halt <- TRUE
     state
   } else {
+
+    # TODO: Put most of advanceState in here, just use it to bind i/o & debug
+    continue <- function(nextState) {
+      advanceState(nextState, iccin, iccout, debug)
+    }
+
     opcodeNParams <- c(
       3,
       3,
@@ -95,73 +91,84 @@ advanceState <- function(state,
       "1" = {
         debug(sprintf("%d + %d -> %d", args[1], args[2], params[3]), 2)
 
-        list(
-          tape = tapeSet(
-            tape,
-            params[3],
-            args[1] + args[2]),
-          pos = pos + 4,
-          halt = FALSE
+        continue(
+          list(
+            tape = tapeSet(
+              tape,
+              params[3],
+              args[1] + args[2]),
+            pos = pos + 4,
+            halt = FALSE
+          )
         )
       },
       "2" = {
         debug(sprintf("%d * %d -> %d", args[1], args[2], params[3]), 2)
 
-        list(
-          tape = tapeSet(
-            tape,
-            params[3],
-            args[1] * args[2]),
-          pos = pos + 4,
-          halt = FALSE
+        continue(
+          list(
+            tape = tapeSet(
+              tape,
+              params[3],
+              args[1] * args[2]),
+            pos = pos + 4,
+            halt = FALSE
+          )
         )
       },
       "3" = {
-        value <- iccin()  # I'm giggling like a stupid person here ^^
-        debug(sprintf("Read value %d -> %d", value, params[1]), 2)
-        list(
-          tape = tapeSet(
-            tape,
-            params[1],
-            value),
-          pos = pos + 2,
-          halt = FALSE
-        )
+        iccin(function(value) {
+          debug(sprintf("Read value %d -> %d", value, params[1]), 2)
+          continue(
+            list(
+              tape = tapeSet(
+                tape,
+                params[1],
+                value),
+              pos = pos + 2,
+              halt = FALSE
+            )
+          )
+        }) # I'm giggling like a stupid person here ^^
       },
       "4" = {
         debug(sprintf("Writing %d to iccout", args[1]), 2)
         iccout(args[1])
         state$pos <- pos + 2
-        state
+        continue(state)
       },
       "5" = {
         debug(sprintf("Checking whether %d != 0", args[1]), 2)
         state$pos <- ifelse(args[1] != 0, args[2], pos + 3)
-        state
+        continue(state)
       },
       "6" = {
         debug(sprintf("Checking whether %d == 0", args[1]), 2)
         state$pos <- ifelse(args[1] == 0, args[2], pos + 3)
-        state
+        continue(state)
       },
       "7" = {
         debug(sprintf("%d < %d -> %d", args[1], args[2], params[3]), 2)
-        list(
-          tape = tapeSet(tape,
-                         params[3],
-                         ifelse(args[1] < args[2], 1, 0)),
-          pos = pos + 4,
-          halt = FALSE
+        continue(
+          list(
+            tape = tapeSet(tape,
+                           params[3],
+                           ifelse(args[1] < args[2], 1, 0)),
+            pos = pos + 4,
+            halt = FALSE
+          )
         )
       },
       "8" = {
         debug(sprintf("%d == %d -> %d", args[1], args[2], params[3]), 2)
-        list(
-          tape = tapeSet(tape,
-                         params[3],
-                         ifelse(args[1] == args[2], 1, 0)),
-          pos = pos + 4,
-          halt = FALSE
+        continue(
+          list(
+            tape = tapeSet(tape,
+                           params[3],
+                           ifelse(args[1] == args[2], 1, 0)),
+            pos = pos + 4,
+            halt = FALSE
+          )
         )
       }
     )
@@ -209,24 +216,26 @@ iccFileInput <- function(con) {
     open(con)
   }
 
-  function() {
-    readLines(con, 1)
+  function(cb) {
+    cb(readLines(con, 1))
   }
 }
 
 iccManualInput <- function() {
-  done <- FALSE
+  function(cb) {
+    done <- FALSE
 
-  while(!done) {
-    x <- suppressWarnings(as.numeric(readline("icc> ")))
-    done <- !is.na(x) && as.integer(x) == x
+    while(!done) {
+      x <- suppressWarnings(as.numeric(readline("icc> ")))
+      done <- !is.na(x) && as.integer(x) == x
 
-    if(!done) {
-      message("icc> Nope, please enter an integer...")
+      if(!done) {
+        message("icc> Nope, please enter an integer...")
+      }
     }
-  }
 
-  x
+    cb(x)
+  }
 }
 
 #' Create an ICC input "tape"
@@ -242,7 +251,7 @@ iccInput <- function(values, loop = FALSE) {
   i <- 1
   nValues <- length(values)
 
-  function() {
+  function(cb) {
     if(i > nValues) {
       if(loop) {
         i <- 1
@@ -254,26 +263,42 @@ iccInput <- function(values, loop = FALSE) {
     out <- values[i]
     i <<- i + 1
 
-    out
+    cb(out)
   }
 }
 
-iccPipe <- function(initialBuffer = NULL) {
+iccPipe <- function(initialBuffer = NULL, print = FALSE) {
   start <- 1
   end <- length(initialBuffer)
   buffer <- initialBuffer
 
+  cbStart <- 1
+  cbEnd <- 0
+  cbQueue <- list()
+
   function(x = NULL) {
-    if(!is.null(x)) {
-      buffer <<- c(buffer, x)
-      end <<- end + 1
+    if(!is.function(x)) {
+      if(print) {
+        message(x)
+      }
+
+      if(cbStart > cbEnd) {
+        # No queue, buffer value for later
+        buffer <<- c(buffer, x)
+        end <<- end + 1
+      } else {
+        # Somebody is already waiting
+        cbStart <<- cbStart + 1
+        cbQueue[[cbStart - 1]](x)
+      }
     } else {
       if(end < start) {
-        NULL
+        cbQueue <<- c(cbQueue, x)
+        cbEnd <<- cbEnd + 1
       } else {
         out <- buffer[start]
         start <<- start + 1
-        out
+        x(out)
       }
     }
   }
