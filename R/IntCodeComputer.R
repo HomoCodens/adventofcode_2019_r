@@ -258,6 +258,28 @@ iccInput <- function(values, loop = FALSE) {
   }
 }
 
+iccPipe <- function(initialBuffer = NULL) {
+  start <- 1
+  end <- length(initialBuffer)
+  buffer <- initialBuffer
+
+  function(x = NULL) {
+    if(!is.null(x)) {
+      buffer <<- c(buffer, x)
+      end <<- end + 1
+    } else {
+      if(end < start) {
+        NULL
+      } else {
+        out <- buffer[start]
+        start <<- start + 1
+        out
+      }
+    }
+  }
+}
+
+
 #' Collects output values of an ICC
 #'
 #' Because it might come in handy at some point?
