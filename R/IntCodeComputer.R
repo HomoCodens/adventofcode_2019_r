@@ -267,7 +267,7 @@ iccInput <- function(values, loop = FALSE) {
   }
 }
 
-iccPipe <- function(initialBuffer = NULL, print = FALSE) {
+iccPipe <- function(initialBuffer = NULL, output = NULL) {
   start <- 1
   end <- length(initialBuffer)
   buffer <- initialBuffer
@@ -278,8 +278,8 @@ iccPipe <- function(initialBuffer = NULL, print = FALSE) {
 
   function(x = NULL) {
     if(!is.function(x)) {
-      if(print) {
-        message(x)
+      if(!is.null(output)) {
+        output(x)
       }
 
       if(cbStart > cbEnd) {
