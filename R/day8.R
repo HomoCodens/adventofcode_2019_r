@@ -24,5 +24,7 @@ day8 <- function(path) {
     image[mask] <- layers[, , i][mask]
   }
 
-  print(image)
+  image <- t(image)
+
+  cat(paste(apply(ifelse(image == 1, "▮", "▯" ),1, paste, collapse = ""), collapse = "\n"))
 }
