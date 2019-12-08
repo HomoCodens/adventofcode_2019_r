@@ -6,6 +6,7 @@ runIntCodeComputer <- function(tape,
                                verb = NULL,
                                iccin = function(){0},
                                iccout = function(x){},
+                               done = function(x){},
                                pos = 0,
                                debug = 0) {
 
@@ -34,12 +35,15 @@ runIntCodeComputer <- function(tape,
     halt = FALSE
   )
 
-  advanceState(state, iccin, iccout, debugFcn)
+  advanceState(state, iccin, iccout, done, debugFcn)
+
+  TRUE
 }
 
 advanceState <- function(state,
                          iccin,
                          iccout,
+                         done,
                          debug) {
   tape <- state$tape
   pos <- state$pos
@@ -53,12 +57,12 @@ advanceState <- function(state,
   if(opcode == 99) {
     debug("HALT!!!", 1)
     state$halt <- TRUE
-    state
+    done(state$tape)
   } else {
 
     # TODO: Put most of advanceState in here, just use it to bind i/o & debug
     continue <- function(nextState) {
-      advanceState(nextState, iccin, iccout, debug)
+      advanceState(nextState, iccin, iccout, done, debug)
     }
 
     opcodeNParams <- c(

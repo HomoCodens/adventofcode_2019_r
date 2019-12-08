@@ -15,22 +15,48 @@ day7 <- function(path) {
 
   perms <- getPerms(0:4)
 
-  doTheThing <- function(perm) {
-    pipe <- iccPipe(0)
+  doTheThing <- function(perm, permDone) {
 
-    for(p in perm) {
-      iccin <- iccInput(c(p, pipe()))
-      runIntCodeComputer(tape, iccin = iccin, iccout = pipe)
-    }
+    latestOut <- 0
+    pipeEA <- iccPipe(c(perm[1], 0), output = function(x){ latestOut <<- x })
+    pipeAB <- iccPipe(perm[2])
+    pipeBC <- iccPipe(perm[3])
+    pipeCD <- iccPipe(perm[4])
+    pipeDE <- iccPipe(perm[5])
 
-    pipe()
+    runIntCodeComputer(tape, iccin = pipeEA, iccout = pipeAB)
+    runIntCodeComputer(tape, iccin = pipeAB, iccout = pipeBC)
+    runIntCodeComputer(tape, iccin = pipeBC, iccout = pipeCD)
+    runIntCodeComputer(tape, iccin = pipeCD, iccout = pipeDE)
+    runIntCodeComputer(tape,
+                       iccin = pipeDE,
+                       iccout = pipeEA,
+                       done = function(tape) {
+                         permDone(latestOut)
+                       })
   }
 
-  allOutputs <- apply(perms, 1, doTheThing)
+  acc <- iccOutputAccumulator()
 
-  maxOutput <- which.max(allOutputs)
+  for(i in seq(nrow(perms))) {
+    doTheThing(perms[i, ], function(x) {
+      acc$acc(x)
+      if(i == nrow(perms)) {
+        message(max(getOutput(acc)))
+      }
+    })
+  }
 
-  message(sprintf("The largest possible output is %d, produced by phase sequence %s...",
-                  allOutputs[maxOutput],
-                  paste(perms[maxOutput, ], collapse = ", ")))
+  perms2 <- getPerms(5:9)
+
+  acc <- iccOutputAccumulator()
+
+  for(i in seq(nrow(perms2))) {
+    doTheThing(perms2[i, ], function(x) {
+      acc$acc(x)
+      if(i == nrow(perms2)) {
+        message(max(getOutput(acc)))
+      }
+    })
+  }
 }
