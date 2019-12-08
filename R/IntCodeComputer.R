@@ -1,6 +1,15 @@
-# TODO:
-# * document these
-
+#' Run a program on an ICC
+#'
+#' @param tape integer IntCode program to run
+#' @param noun integer Noun for the program (default none)
+#' @param verb integer Verb for the program (default none)
+#' @param iccin function Input function (See IccInput)
+#' @param iccout function Output function (See IccOutput)
+#' @param done function Gets called with the final tape state after the computer halts
+#' @param pos integer Starting position of the tape head (default 0)
+#' @param debug integer Debug level (default 0)
+#'
+#' @export
 runIntCodeComputer <- function(tape,
                                noun = NULL,
                                verb = NULL,
@@ -10,6 +19,9 @@ runIntCodeComputer <- function(tape,
                                pos = 0,
                                debug = 0) {
 
+  # General purpoise debug function so the code does not get
+  # cluttered with if(debug >= xx)
+  # Handles strings and other objects
   debugFcn <- function(x, level) {
     if(level <= debug) {
       if(is.character(x)) {
@@ -20,21 +32,24 @@ runIntCodeComputer <- function(tape,
     }
   }
 
+  # If noun and/or verb are provided, set them on the tape
   if(!is.null(noun)) {
     tape <- tapeSet(tape, 1, noun)
   }
-
   if(!is.null(verb)) {
     tape <- tapeSet(tape, 2, verb)
   }
 
+  # Main driver
   advanceState <- function(state) {
     tape <- state$tape
     pos <- state$pos
 
     debugFcn(sprintf("Head at %d", pos), 3)
+
     instruction <- tapeGet(tape, pos)
     debugFcn(sprintf("Got instruction %d", instruction), 4)
+
     opcode <- instruction %% 100
     debugFcn(sprintf("Executing opCode %d", opcode), 1)
 
@@ -61,8 +76,10 @@ runIntCodeComputer <- function(tape,
 
       paramIdx <- ((pos + 1):(pos + nParams))
       debugFcn(paste0("params at: ", paste(paramIdx, collapse = ",")), 4)
+
       params <- tapeGet(tape, paramIdx)
       debugFcn(paste0("params: ", paste(params, collapse = ",")), 2)
+
       args <- tapeGet(tape, params, paramModes)
       debugFcn(paste0("args: ", paste(args, collapse = ",")), 2)
 
@@ -70,6 +87,8 @@ runIntCodeComputer <- function(tape,
         # Oh R, you silly stupid language, you...
         # Cast the opcode as character because otherwise multi-digit codes won't work
         as.character(opcode),
+
+        # Addition
         "1" = {
           debugFcn(sprintf("%d + %d -> %d", args[1], args[2], params[3]), 2)
 
@@ -83,6 +102,8 @@ runIntCodeComputer <- function(tape,
             )
           )
         },
+
+        # Multiplication
         "2" = {
           debugFcn(sprintf("%d * %d -> %d", args[1], args[2], params[3]), 2)
 
@@ -96,6 +117,14 @@ runIntCodeComputer <- function(tape,
             )
           )
         },
+
+        # Input
+        # This is the tricky bit:
+        # Since R runs on a single thread, this needs to be done asynchronously
+        # Elswise a computer waiting for input would block all others running at the
+        # same time (and any code that might provide it with input)
+        # Therefore wait for input to be ready by registering the next advanceState
+        # as a callback for iccin (see iccInput methods for more info)
         "3" = {
           iccin(function(value) {
             debugFcn(sprintf("Read value %d -> %d", value, params[1]), 2)
@@ -110,22 +139,30 @@ runIntCodeComputer <- function(tape,
             )
           }) # I'm giggling like a stupid person here ^^
         },
+
+        # Output
         "4" = {
           debugFcn(sprintf("Writing %d to iccout", args[1]), 2)
           iccout(args[1])
           state$pos <- pos + 2
           advanceState(state)
         },
+
+        # Jump if true
         "5" = {
           debugFcn(sprintf("Checking whether %d != 0", args[1]), 2)
           state$pos <- ifelse(args[1] != 0, args[2], pos + 3)
           advanceState(state)
         },
+
+        # Jump if false
         "6" = {
           debugFcn(sprintf("Checking whether %d == 0", args[1]), 2)
           state$pos <- ifelse(args[1] == 0, args[2], pos + 3)
           advanceState(state)
         },
+
+        # Compare less
         "7" = {
           debugFcn(sprintf("%d < %d -> %d", args[1], args[2], params[3]), 2)
           advanceState(
@@ -137,6 +174,8 @@ runIntCodeComputer <- function(tape,
             )
           )
         },
+
+        # Compare equal
         "8" = {
           debugFcn(sprintf("%d == %d -> %d", args[1], args[2], params[3]), 2)
           advanceState(
@@ -152,6 +191,7 @@ runIntCodeComputer <- function(tape,
     }
   }
 
+  # Kick things off
   state <- list(
     tape = tape,
     pos = pos
@@ -193,6 +233,9 @@ tapeSet <-  function(tape, address, value) {
   tape[address + 1] <- value
   tape
 }
+
+
+# input methods -----------------------------------------------------------
 
 iccFileInput <- function(con) {
   if(!inherits(con, "connection")) {
@@ -265,6 +308,8 @@ iccPipe <- function(initialBuffer = NULL, output = NULL) {
 
   function(x = NULL) {
     if(!is.function(x)) {
+      # Being used as output (data in)
+
       if(!is.null(output)) {
         output(x)
       }
@@ -279,10 +324,13 @@ iccPipe <- function(initialBuffer = NULL, output = NULL) {
         cbQueue[[cbStart - 1]](x)
       }
     } else {
+      # Being used as input (data out)
       if(end < start) {
+        # We have no data ready, register the callback for later use
         cbQueue <<- c(cbQueue, x)
         cbEnd <<- cbEnd + 1
       } else {
+        # There is data available, call callback immediately
         out <- buffer[start]
         start <<- start + 1
         x(out)
@@ -290,6 +338,10 @@ iccPipe <- function(initialBuffer = NULL, output = NULL) {
     }
   }
 }
+
+
+# output methods ----------------------------------------------------------
+
 
 
 #' Collects output values of an ICC
