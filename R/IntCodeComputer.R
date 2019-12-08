@@ -21,11 +21,11 @@ runIntCodeComputer <- function(tape,
   }
 
   if(!is.null(noun)) {
-    tape <- tapeSet(tape, 0, noun)
+    tape <- tapeSet(tape, 1, noun)
   }
 
   if(!is.null(verb)) {
-    tape <- tapeSet(tape, 1, verb)
+    tape <- tapeSet(tape, 2, verb)
   }
 
   state <- list(
