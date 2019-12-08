@@ -359,7 +359,7 @@ iccPipe <- function(initialBuffer = NULL, output = NULL) {
 #' o <- iccOutputAccumulator()
 #' o$acc(1)
 #' o$acc(101)
-#' getOutput(o)
+#' o$values()
 iccOutputAccumulator <- function(print = FALSE) {
   values <- c()
 
@@ -369,20 +369,11 @@ iccOutputAccumulator <- function(print = FALSE) {
     }
 
     values <<- c(values, x)
+  },
+  values = function() {
+    values
   })
 
   class(out) <- "iccOutputAccumulator"
   out
-}
-
-#' Get values from an iccOutputAccumulator
-#'
-#' @param accumulator
-#'
-#' @return A vector of values that were passed to the output function
-#' @export
-#'
-#' @examples
-getOutput <- function(accumulator) {
-  as.list(environment(accumulator$acc))$values
 }

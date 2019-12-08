@@ -42,7 +42,7 @@ day7 <- function(path) {
     doTheThing(perms[i, ], function(x) {
       acc$acc(x)
       if(i == nrow(perms)) {
-        message(max(getOutput(acc)))
+        message(max(acc$values()))
       }
     })
   }
@@ -55,7 +55,7 @@ day7 <- function(path) {
     doTheThing(perms2[i, ], function(x) {
       acc$acc(x)
       if(i == nrow(perms2)) {
-        message(max(getOutput(acc)))
+        message(max(acc$values()))
       }
     })
   }

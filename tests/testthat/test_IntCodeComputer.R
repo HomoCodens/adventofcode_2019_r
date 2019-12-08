@@ -45,7 +45,7 @@ test_that("it does work", {
   o <- iccOutputAccumulator()
   o$acc(1)
   o$acc(2)
-  expect_equal(getOutput(o), 1:2)
+  expect_equal(o$values(), 1:2)
 })
 
 test_that("it prints", {
