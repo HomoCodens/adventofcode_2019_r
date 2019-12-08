@@ -28,155 +28,138 @@ runIntCodeComputer <- function(tape,
     tape <- tapeSet(tape, 2, verb)
   }
 
-  state <- list(
-    tape = tape,
-    pos = pos,
-    debug = debug,
-    halt = FALSE
-  )
+  advanceState <- function(state) {
+    tape <- state$tape
+    pos <- state$pos
 
-  advanceState(state, iccin, iccout, done, debugFcn)
+    debugFcn(sprintf("Head at %d", pos), 3)
+    instruction <- tapeGet(tape, pos)
+    debugFcn(sprintf("Got instruction %d", instruction), 4)
+    opcode <- instruction %% 100
+    debugFcn(sprintf("Executing opCode %d", opcode), 1)
 
-  TRUE
-}
+    if(opcode == 99) {
+      debugFcn("HALT!!!", 1)
+      done(state$tape)
+    } else {
 
-advanceState <- function(state,
-                         iccin,
-                         iccout,
-                         done,
-                         debug) {
-  tape <- state$tape
-  pos <- state$pos
+      opcodeNParams <- c(
+        3,
+        3,
+        1,
+        1,
+        2,
+        2,
+        3,
+        3
+      )
 
-  debug(sprintf("Head at %d", pos), 3)
-  instruction <- tapeGet(tape, pos)
-  debug(sprintf("Got instruction %d", instruction), 4)
-  opcode <- instruction %% 100
-  debug(sprintf("Executing opCode %d", opcode), 1)
-
-  if(opcode == 99) {
-    debug("HALT!!!", 1)
-    state$halt <- TRUE
-    done(state$tape)
-  } else {
-
-    # TODO: Put most of advanceState in here, just use it to bind i/o & debug
-    continue <- function(nextState) {
-      advanceState(nextState, iccin, iccout, done, debug)
-    }
-
-    opcodeNParams <- c(
-      3,
-      3,
-      1,
-      1,
-      2,
-      2,
-      3,
-      3
-    )
-
-    nParams <- opcodeNParams[opcode]
-    paramModes <- rev(((instruction %/% 100) %% 10^(nParams:1)) %/% 10^((nParams-1):0))
-    debug(sprintf("Param modes: %s", paste(paramModes, collapse = ",")), 4)
+      nParams <- opcodeNParams[opcode]
+      paramModes <- rev(((instruction %/% 100) %% 10^(nParams:1)) %/% 10^((nParams-1):0))
+      debugFcn(sprintf("Param modes: %s", paste(paramModes, collapse = ",")), 4)
 
 
-    paramIdx <- ((pos + 1):(pos + nParams))
-    debug(paste0("params at: ", paste(paramIdx, collapse = ",")), 4)
-    params <- tapeGet(tape, paramIdx)
-    debug(paste0("params: ", paste(params, collapse = ",")), 2)
-    args <- tapeGet(tape, params, paramModes)
-    debug(paste0("args: ", paste(args, collapse = ",")), 2)
+      paramIdx <- ((pos + 1):(pos + nParams))
+      debugFcn(paste0("params at: ", paste(paramIdx, collapse = ",")), 4)
+      params <- tapeGet(tape, paramIdx)
+      debugFcn(paste0("params: ", paste(params, collapse = ",")), 2)
+      args <- tapeGet(tape, params, paramModes)
+      debugFcn(paste0("args: ", paste(args, collapse = ",")), 2)
 
-    switch(
-      # Oh R, you silly stupid language, you...
-      # Cast the opcode as character because otherwise multi-digit codes won't work
-      as.character(opcode),
-      "1" = {
-        debug(sprintf("%d + %d -> %d", args[1], args[2], params[3]), 2)
+      switch(
+        # Oh R, you silly stupid language, you...
+        # Cast the opcode as character because otherwise multi-digit codes won't work
+        as.character(opcode),
+        "1" = {
+          debugFcn(sprintf("%d + %d -> %d", args[1], args[2], params[3]), 2)
 
-        continue(
-          list(
-            tape = tapeSet(
-              tape,
-              params[3],
-              args[1] + args[2]),
-            pos = pos + 4,
-            halt = FALSE
-          )
-        )
-      },
-      "2" = {
-        debug(sprintf("%d * %d -> %d", args[1], args[2], params[3]), 2)
-
-        continue(
-          list(
-            tape = tapeSet(
-              tape,
-              params[3],
-              args[1] * args[2]),
-            pos = pos + 4,
-            halt = FALSE
-          )
-        )
-      },
-      "3" = {
-        iccin(function(value) {
-          debug(sprintf("Read value %d -> %d", value, params[1]), 2)
-          continue(
+          advanceState(
             list(
               tape = tapeSet(
                 tape,
-                params[1],
-                value),
-              pos = pos + 2,
-              halt = FALSE
+                params[3],
+                args[1] + args[2]),
+              pos = pos + 4
             )
           )
-        }) # I'm giggling like a stupid person here ^^
-      },
-      "4" = {
-        debug(sprintf("Writing %d to iccout", args[1]), 2)
-        iccout(args[1])
-        state$pos <- pos + 2
-        continue(state)
-      },
-      "5" = {
-        debug(sprintf("Checking whether %d != 0", args[1]), 2)
-        state$pos <- ifelse(args[1] != 0, args[2], pos + 3)
-        continue(state)
-      },
-      "6" = {
-        debug(sprintf("Checking whether %d == 0", args[1]), 2)
-        state$pos <- ifelse(args[1] == 0, args[2], pos + 3)
-        continue(state)
-      },
-      "7" = {
-        debug(sprintf("%d < %d -> %d", args[1], args[2], params[3]), 2)
-        continue(
-          list(
-            tape = tapeSet(tape,
-                           params[3],
-                           ifelse(args[1] < args[2], 1, 0)),
-            pos = pos + 4,
-            halt = FALSE
+        },
+        "2" = {
+          debugFcn(sprintf("%d * %d -> %d", args[1], args[2], params[3]), 2)
+
+          advanceState(
+            list(
+              tape = tapeSet(
+                tape,
+                params[3],
+                args[1] * args[2]),
+              pos = pos + 4
+            )
           )
-        )
-      },
-      "8" = {
-        debug(sprintf("%d == %d -> %d", args[1], args[2], params[3]), 2)
-        continue(
-          list(
-            tape = tapeSet(tape,
-                           params[3],
-                           ifelse(args[1] == args[2], 1, 0)),
-            pos = pos + 4,
-            halt = FALSE
+        },
+        "3" = {
+          iccin(function(value) {
+            debugFcn(sprintf("Read value %d -> %d", value, params[1]), 2)
+            advanceState(
+              list(
+                tape = tapeSet(
+                  tape,
+                  params[1],
+                  value),
+                pos = pos + 2
+              )
+            )
+          }) # I'm giggling like a stupid person here ^^
+        },
+        "4" = {
+          debugFcn(sprintf("Writing %d to iccout", args[1]), 2)
+          iccout(args[1])
+          state$pos <- pos + 2
+          advanceState(state)
+        },
+        "5" = {
+          debugFcn(sprintf("Checking whether %d != 0", args[1]), 2)
+          state$pos <- ifelse(args[1] != 0, args[2], pos + 3)
+          advanceState(state)
+        },
+        "6" = {
+          debugFcn(sprintf("Checking whether %d == 0", args[1]), 2)
+          state$pos <- ifelse(args[1] == 0, args[2], pos + 3)
+          advanceState(state)
+        },
+        "7" = {
+          debugFcn(sprintf("%d < %d -> %d", args[1], args[2], params[3]), 2)
+          advanceState(
+            list(
+              tape = tapeSet(tape,
+                             params[3],
+                             ifelse(args[1] < args[2], 1, 0)),
+              pos = pos + 4
+            )
           )
-        )
-      }
-    )
+        },
+        "8" = {
+          debugFcn(sprintf("%d == %d -> %d", args[1], args[2], params[3]), 2)
+          advanceState(
+            list(
+              tape = tapeSet(tape,
+                             params[3],
+                             ifelse(args[1] == args[2], 1, 0)),
+              pos = pos + 4
+            )
+          )
+        }
+      )
+    }
   }
+
+  state <- list(
+    tape = tape,
+    pos = pos
+  )
+
+  advanceState(state)
+
+  TRUE
 }
 
 # Tape wrappers -----------------------------------------------------------
