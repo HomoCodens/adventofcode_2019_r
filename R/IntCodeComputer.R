@@ -42,176 +42,167 @@ runIntCodeComputer <- function(tape,
 
   # Main driver
   advanceState <- function(state) {
-    tape <- state$tape
-    pos <- state$pos
-    relBase <- state$relBase
+    repeat {
+      tape <- state$tape
+      pos <- state$pos
+      relBase <- state$relBase
 
-    debugFcn(tape, 10)
+      debugFcn(tape, 10)
 
-    debugFcn(sprintf("Head at %.0f", pos), 3)
-    debugFcn(sprintf("Relative base at %.0f", relBase), 3)
+      debugFcn(sprintf("Head at %.0f", pos), 3)
+      debugFcn(sprintf("Relative base at %.0f", relBase), 3)
 
-    instruction <- tapeGet(tape, pos)
-    debugFcn(sprintf("Got instruction %.0f", instruction), 4)
+      instruction <- tapeGet(tape, pos)
+      debugFcn(sprintf("Got instruction %.0f", instruction), 4)
 
-    opcode <- instruction %% 100
-    debugFcn(sprintf("Executing opCode %.0f", opcode), 1)
+      opcode <- instruction %% 100
+      debugFcn(sprintf("Executing opCode %.0f", opcode), 1)
 
-    if(opcode == 99) {
-      debugFcn("HALT!!!", 1)
-      done(state$tape)
-    } else {
+      if(opcode == 99) {
+        debugFcn("HALT!!!", 1)
+        done(state$tape)
+        break;
+      } else {
 
-      opcodeNParams <- c(
-        3,
-        3,
-        1,
-        1,
-        2,
-        2,
-        3,
-        3,
-        1
-      )
+        opcodeNParams <- c(
+          3,
+          3,
+          1,
+          1,
+          2,
+          2,
+          3,
+          3,
+          1
+        )
 
-      nParams <- opcodeNParams[opcode]
-      paramModes <- rev(((instruction %/% 100) %% 10^(nParams:1)) %/% 10^((nParams-1):0))
-      debugFcn(sprintf("Param modes: %s", paste(paramModes, collapse = ",")), 4)
+        nParams <- opcodeNParams[opcode]
+        paramModes <- rev(((instruction %/% 100) %% 10^(nParams:1)) %/% 10^((nParams-1):0))
+        debugFcn(sprintf("Param modes: %s", paste(paramModes, collapse = ",")), 4)
 
 
-      paramIdx <- ((pos + 1):(pos + nParams))
-      debugFcn(paste0("params at: ", paste(paramIdx, collapse = ",")), 4)
+        paramIdx <- ((pos + 1):(pos + nParams))
+        debugFcn(paste0("params at: ", paste(paramIdx, collapse = ",")), 4)
 
-      params <- tapeGet(tape, paramIdx)
-      debugFcn(paste0("params: ", paste(params, collapse = ",")), 2)
+        params <- tapeGet(tape, paramIdx)
+        debugFcn(paste0("params: ", paste(params, collapse = ",")), 2)
 
-      args <- tapeGet(tape, params, paramModes, relBase)
-      debugFcn(paste0("args: ", paste(args, collapse = ",")), 2)
+        args <- tapeGet(tape, params, paramModes, relBase)
+        debugFcn(paste0("args: ", paste(args, collapse = ",")), 2)
 
-      switch(
-        # Oh R, you silly stupid language, you...
-        # Cast the opcode as character because otherwise multi-digit codes won't work
-        as.character(opcode),
+        switch(
+          # Oh R, you silly stupid language, you...
+          # Cast the opcode as character because otherwise multi-digit codes won't work
+          as.character(opcode),
 
-        # Addition
-        "1" = {
-          to <- params[3] + ifelse(paramModes[3] == 0, 0, relBase)
+          # Addition
+          "1" = {
+            to <- params[3] + ifelse(paramModes[3] == 0, 0, relBase)
 
-          debugFcn(sprintf("%.0f + %.0f -> %.0f", args[1], args[2], to), 2)
-
-          state$tape <- tapeSet(
-            tape,
-            to,
-            args[1] + args[2])
-
-          state$pos <- pos + 4
-
-          advanceState(state)
-        },
-
-        # Multiplication
-        "2" = {
-          to <- ifelse(paramModes[3] == 0, params[3], params[3] + relBase)
-
-          debugFcn(sprintf("%.0f * %.0f -> %.0f", args[1], args[2], to), 2)
-
-          state$tape <- tapeSet(
-            tape,
-            to,
-            args[1] * args[2])
-
-          state$pos <- pos + 4
-
-          advanceState(state)
-        },
-
-        # Input
-        # This is the tricky bit:
-        # Since R runs on a single thread, this needs to be done asynchronously
-        # Elswise a computer waiting for input would block all others running at the
-        # same time (and any code that might provide it with input)
-        # Therefore wait for input to be ready by registering the next advanceState
-        # as a callback for iccin (see iccInput methods for more info)
-        "3" = {
-          iccin(function(value) {
-            to <- ifelse(paramModes[1] == 0, params[1], params[1] + relBase)
-
-            debugFcn(sprintf("Read value %.0f -> %.0f", value, to), 2)
+            debugFcn(sprintf("%.0f + %.0f -> %.0f", args[1], args[2], to), 2)
 
             state$tape <- tapeSet(
               tape,
               to,
-              value)
+              args[1] + args[2])
 
+            state$pos <- pos + 4
+          },
+
+          # Multiplication
+          "2" = {
+            to <- ifelse(paramModes[3] == 0, params[3], params[3] + relBase)
+
+            debugFcn(sprintf("%.0f * %.0f -> %.0f", args[1], args[2], to), 2)
+
+            state$tape <- tapeSet(
+              tape,
+              to,
+              args[1] * args[2])
+
+            state$pos <- pos + 4
+          },
+
+          # Input
+          # This is the tricky bit:
+          # Since R runs on a single thread, this needs to be done asynchronously
+          # Elswise a computer waiting for input would block all others running at the
+          # same time (and any code that might provide it with input)
+          # Therefore wait for input to be ready by registering the next advanceState
+          # as a callback for iccin (see iccInput methods for more info)
+          "3" = {
+            iccin(function(value) {
+              to <- ifelse(paramModes[1] == 0, params[1], params[1] + relBase)
+
+              debugFcn(sprintf("Read value %.0f -> %.0f", value, to), 2)
+
+              state$tape <- tapeSet(
+                tape,
+                to,
+                value)
+
+              state$pos <- pos + 2
+
+              advanceState(state)
+            }) # I'm giggling like a stupid person here ^^
+            break;
+          },
+
+          # Output
+          "4" = {
+            debugFcn(sprintf("Writing %.0f to iccout", args[1]), 2)
+            iccout(args[1])
             state$pos <- pos + 2
+          },
 
-            advanceState(state)
-          }) # I'm giggling like a stupid person here ^^
-        },
+          # Jump if true
+          "5" = {
+            debugFcn(sprintf("Checking whether %.0f != 0", args[1]), 2)
+            state$pos <- ifelse(args[1] != 0, args[2], pos + 3)
+          },
 
-        # Output
-        "4" = {
-          debugFcn(sprintf("Writing %.0f to iccout", args[1]), 2)
-          iccout(args[1])
-          state$pos <- pos + 2
-          advanceState(state)
-        },
+          # Jump if false
+          "6" = {
+            debugFcn(sprintf("Checking whether %.0f == 0", args[1]), 2)
+            state$pos <- ifelse(args[1] == 0, args[2], pos + 3)
+          },
 
-        # Jump if true
-        "5" = {
-          debugFcn(sprintf("Checking whether %.0f != 0", args[1]), 2)
-          state$pos <- ifelse(args[1] != 0, args[2], pos + 3)
-          advanceState(state)
-        },
+          # Compare less
+          "7" = {
+            to <- ifelse(paramModes[3] == 0, params[3], params[3] + relBase)
 
-        # Jump if false
-        "6" = {
-          debugFcn(sprintf("Checking whether %.0f == 0", args[1]), 2)
-          state$pos <- ifelse(args[1] == 0, args[2], pos + 3)
-          advanceState(state)
-        },
+            debugFcn(sprintf("%.0f < %.0f -> %.0f", args[1], args[2], to), 2)
 
-        # Compare less
-        "7" = {
-          to <- ifelse(paramModes[3] == 0, params[3], params[3] + relBase)
+            state$tape <- tapeSet(tape,
+                                  to,
+                                  ifelse(args[1] < args[2], 1, 0))
 
-          debugFcn(sprintf("%.0f < %.0f -> %.0f", args[1], args[2], to), 2)
+            state$pos <- pos + 4
+          },
 
-          state$tape <- tapeSet(tape,
-                                to,
-                                ifelse(args[1] < args[2], 1, 0))
+          # Compare equal
+          "8" = {
+            to <- ifelse(paramModes[3] == 0, params[3], params[3] + relBase)
 
-          state$pos <- pos + 4
+            debugFcn(sprintf("%.0f == %.0f -> %.0f", args[1], args[2], to), 2)
 
-          advanceState(state)
-        },
+            state$tape <- tapeSet(tape,
+                                  to,
+                                  ifelse(args[1] == args[2], 1, 0))
 
-        # Compare equal
-        "8" = {
-          to <- ifelse(paramModes[3] == 0, params[3], params[3] + relBase)
+            state$pos <- pos + 4
+          },
 
-          debugFcn(sprintf("%.0f == %.0f -> %.0f", args[1], args[2], to), 2)
+          # Adjust relative base
+          "9" = {
+            debugFcn(sprintf("relBase %.0f + %.0f -> %.0f", relBase, args[1], relBase + args[1]), 2)
 
-          state$tape <- tapeSet(tape,
-                                to,
-                                ifelse(args[1] == args[2], 1, 0))
+            state$relBase <- relBase + args[1]
 
-          state$pos <- pos + 4
-
-          advanceState(state)
-        },
-
-        # Adjust relative base
-        "9" = {
-          debugFcn(sprintf("relBase %.0f + %.0f -> %.0f", relBase, args[1], relBase + args[1]), 2)
-
-          state$relBase <- relBase + args[1]
-
-          state$pos <- state$pos + 2
-
-          advanceState(state)
-        }
-      )
+            state$pos <- state$pos + 2
+          }
+        )
+      }
     }
   }
 
