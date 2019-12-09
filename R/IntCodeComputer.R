@@ -49,6 +49,7 @@ runIntCodeComputer <- function(tape,
     debugFcn(tape, 10)
 
     debugFcn(sprintf("Head at %.0f", pos), 3)
+    debugFcn(sprintf("Relative base at %.0f", relBase), 3)
 
     instruction <- tapeGet(tape, pos)
     debugFcn(sprintf("Got instruction %.0f", instruction), 4)
@@ -94,11 +95,13 @@ runIntCodeComputer <- function(tape,
 
         # Addition
         "1" = {
-          debugFcn(sprintf("%.0f + %.0f -> %.0f", args[1], args[2], params[3]), 2)
+          to <- params[3] + ifelse(paramModes[3] == 0, 0, relBase)
+
+          debugFcn(sprintf("%.0f + %.0f -> %.0f", args[1], args[2], to), 2)
 
           state$tape <- tapeSet(
             tape,
-            params[3],
+            to,
             args[1] + args[2])
 
           state$pos <- pos + 4
@@ -108,11 +111,13 @@ runIntCodeComputer <- function(tape,
 
         # Multiplication
         "2" = {
-          debugFcn(sprintf("%.0f * %.0f -> %.0f", args[1], args[2], params[3]), 2)
+          to <- ifelse(paramModes[3] == 0, params[3], params[3] + relBase)
+
+          debugFcn(sprintf("%.0f * %.0f -> %.0f", args[1], args[2], to), 2)
 
           state$tape <- tapeSet(
             tape,
-            params[3],
+            to,
             args[1] * args[2])
 
           state$pos <- pos + 4
@@ -168,10 +173,12 @@ runIntCodeComputer <- function(tape,
 
         # Compare less
         "7" = {
-          debugFcn(sprintf("%.0f < %.0f -> %.0f", args[1], args[2], params[3]), 2)
+          to <- ifelse(paramModes[3] == 0, params[3], params[3] + relBase)
+
+          debugFcn(sprintf("%.0f < %.0f -> %.0f", args[1], args[2], to), 2)
 
           state$tape <- tapeSet(tape,
-                                params[3],
+                                to,
                                 ifelse(args[1] < args[2], 1, 0))
 
           state$pos <- pos + 4
@@ -181,10 +188,12 @@ runIntCodeComputer <- function(tape,
 
         # Compare equal
         "8" = {
-          debugFcn(sprintf("%.0f == %.0f -> %.0f", args[1], args[2], params[3]), 2)
+          to <- ifelse(paramModes[3] == 0, params[3], params[3] + relBase)
+
+          debugFcn(sprintf("%.0f == %.0f -> %.0f", args[1], args[2], to), 2)
 
           state$tape <- tapeSet(tape,
-                                params[3],
+                                to,
                                 ifelse(args[1] == args[2], 1, 0))
 
           state$pos <- pos + 4
