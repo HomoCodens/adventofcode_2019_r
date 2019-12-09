@@ -44,6 +44,7 @@ runIntCodeComputer <- function(tape,
   advanceState <- function(state) {
     tape <- state$tape
     pos <- state$pos
+    relBase <- state$relBase
 
     debugFcn(sprintf("Head at %d", pos), 3)
 
@@ -66,7 +67,8 @@ runIntCodeComputer <- function(tape,
         2,
         2,
         3,
-        3
+        3,
+        1
       )
 
       nParams <- opcodeNParams[opcode]
@@ -80,7 +82,7 @@ runIntCodeComputer <- function(tape,
       params <- tapeGet(tape, paramIdx)
       debugFcn(paste0("params: ", paste(params, collapse = ",")), 2)
 
-      args <- tapeGet(tape, params, paramModes)
+      args <- tapeGet(tape, params, paramModes, relBase)
       debugFcn(paste0("args: ", paste(args, collapse = ",")), 2)
 
       switch(
@@ -150,42 +152,53 @@ runIntCodeComputer <- function(tape,
 
         # Jump if true
         "5" = {
-          debugFcn(sprintf("Checking whether %d != 0", args[1]), 2)
+          debugFcn(sprintf("Checking whether %.0f != 0", args[1]), 2)
           state$pos <- ifelse(args[1] != 0, args[2], pos + 3)
           advanceState(state)
         },
 
         # Jump if false
         "6" = {
-          debugFcn(sprintf("Checking whether %d == 0", args[1]), 2)
+          debugFcn(sprintf("Checking whether %.0f == 0", args[1]), 2)
           state$pos <- ifelse(args[1] == 0, args[2], pos + 3)
           advanceState(state)
         },
 
         # Compare less
         "7" = {
-          debugFcn(sprintf("%d < %d -> %d", args[1], args[2], params[3]), 2)
-          advanceState(
-            list(
-              tape = tapeSet(tape,
-                             params[3],
-                             ifelse(args[1] < args[2], 1, 0)),
-              pos = pos + 4
-            )
-          )
+          debugFcn(sprintf("%.0f < %.0f -> %.0f", args[1], args[2], params[3]), 2)
+
+          state$tape <- tapeSet(tape,
+                                params[3],
+                                ifelse(args[1] < args[2], 1, 0))
+
+          state$pos <- pos + 4
+
+          advanceState(state)
         },
 
         # Compare equal
         "8" = {
-          debugFcn(sprintf("%d == %d -> %d", args[1], args[2], params[3]), 2)
-          advanceState(
-            list(
-              tape = tapeSet(tape,
-                             params[3],
-                             ifelse(args[1] == args[2], 1, 0)),
-              pos = pos + 4
-            )
-          )
+          debugFcn(sprintf("%.0f == %.0f -> %.0f", args[1], args[2], params[3]), 2)
+
+          state$tape <- tapeSet(tape,
+                                params[3],
+                                ifelse(args[1] == args[2], 1, 0))
+
+          state$pos <- pos + 4
+
+          advanceState(state)
+        },
+
+        # Adjust relative base
+        "9" = {
+          debugFcn(sprintf("relBase %.0f + %.0f -> %.0f", relBase, args[1], relBase + args[1]), 2)
+
+          state$relBase <- relBase + args[1]
+
+          state$pos <- state$pos + 2
+
+          advanceState(state)
         }
       )
     }
@@ -194,7 +207,8 @@ runIntCodeComputer <- function(tape,
   # Kick things off
   state <- list(
     tape = tape,
-    pos = pos
+    pos = pos,
+    relBase = 0
   )
 
   advanceState(state)
@@ -215,9 +229,22 @@ runIntCodeComputer <- function(tape,
 #' @param mode
 #'
 #' @return The value at address on tape
-tapeGet <- function(tape, parameters, modes = numeric(length(parameters))) {
+tapeGet <- function(tape,
+                    parameters,
+                    modes = numeric(length(parameters)),
+                    base = 0) {
   # That's cheating a little but there should not be any negative params with mode == 0
-  ifelse(modes == 0, tape[abs(parameters) + 1], parameters)
+  # Confirmed on day 9
+  out <- ifelse(modes == 0,
+         tape[abs(parameters) + 1],
+         ifelse(modes == 1,
+                parameters,
+                tape[base + parameters + 1]))
+
+  # In case out of range values were read -> return 0, not NA
+  out[is.na(out)] <- 0
+
+  out
 }
 
 #' Store value on a tape
@@ -231,6 +258,10 @@ tapeGet <- function(tape, parameters, modes = numeric(length(parameters))) {
 #' @return A copy of the tape after setting the value
 tapeSet <-  function(tape, address, value) {
   tape[address + 1] <- value
+
+  # If tape has grown -> set intermediate values to 0 instead of NA
+  tape[is.na(tape)] <- 0
+
   tape
 }
 
