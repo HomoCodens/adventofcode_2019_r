@@ -1,3 +1,4 @@
+# TODO: document cleverness. now sleep tho
 day10 <- function(path) {
   l <- readLines(path)
 
@@ -18,7 +19,7 @@ day10 <- function(path) {
     } else if(x == 0 && y > 0) {
       pi/2
     } else if(x < 0 && y == 0) {
-      pi
+      -pi
     } else if(x > 0) {
       atan(y/x)
     } else if(x < 0 && y > 0) {
@@ -66,5 +67,22 @@ day10 <- function(path) {
     #nrow(coords) - n_blocked
   }
 
-  message(max(sapply(1:nrow(coords), function(i){get_n_visible(coords, i)})))
+  n_visible <- sapply(1:nrow(coords), function(i){get_n_visible(coords, i)})
+  besteroid <- which.max(n_visible)
+
+  message(max(n_visible))
+
+  best_pos <- coords[besteroid, ]
+  coords <- coords[-besteroid, ]
+
+  coords[, x_rel := x - best_pos$x][, y_rel := y - best_pos$y]
+  # Cheat a little to get the gun pointing "up" and rotating the right way
+  coords[, angle := my_little_atan2(-y_rel, x_rel), by = seq(nrow(coords))]
+  coords[angle < 0, angle := angle + 2*pi]
+  coords[, dist := sqrt(x_rel*x_rel + y_rel*y_rel)]
+  setorder(coords, angle, dist)
+  coords[, sweep := 1:.N, by = angle]
+  setorder(coords, sweep, angle, dist)
+
+  coords[200, message(sprintf("It appears the one at (%d, %d) gets obliterated as the 200th. That's %d.", x, y, 100*x+y))]
 }
