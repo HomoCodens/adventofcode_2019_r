@@ -1,8 +1,63 @@
 day11 <- function(path) {
-  devtools::load_all()
-  path <- "inst/input/day11/input.txt"
  tape <- as.numeric(strsplit(readLines(path), ",")[[1]])
 
+ state <- list(
+    tape = program,
+    pos = 0,
+    valueIn = NULL,
+    needValue = FALSE,
+    valueOut = NULL,
+    relBase = 0,
+    halt = FALSE
+ )
+
+ pos <- c(0, 0)
+ dir <- c(0, 1)
+
+ cells <- data.table(x = 0, y = 0, color = 0)
+ EHPRState <- 0 # 0 - Awaiting color, 1 - Awaiting rotation
+
+ while(!state$halt) {
+    state <- returnyAdvanceState(state)
+
+    out <- state$valueOut
+    state$valueOut <- NULL
+
+    if(out) {
+       message(out)
+
+       if(EHPRState == 0) {
+          cells[x == pos[1] & y == pos[2], color := out]
+          EHPRState <- 1
+       } else {
+          if(out == 0) {
+             # Turn left
+             # message("Turning left")
+             dir <- c(-dir[2], dir[1])
+          } else {
+             # Turn right
+             # message("Turning right")
+             dir <- c(dir[2], -dir[1])
+          }
+
+          # Move
+          pos <- pos + dir
+
+          # message(sprintf("Moving (%d, %d) to (%d, %d)", dir[1], dir[2], pos[1], pos[2]))
+
+
+          if(cells[x == pos[1] & y == pos[2], .N] == 0) {
+             cells <- rbind(cells, data.table(x = pos[1], y = pos[2], color = 0))
+          }
+
+          EHPRState <- 0
+       }
+    }
+
+    if(state$needValue) {
+       state$valueIn <- cells[x == pos[1] & y == pos[2], color]
+    }
+ }
 
  ehpr <- function(output = NULL) {
 

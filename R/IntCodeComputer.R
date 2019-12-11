@@ -410,3 +410,140 @@ iccOutputAccumulator <- function(print = FALSE) {
   class(out) <- "iccOutputAccumulator"
   out
 }
+
+
+# no callback country -----------------------------------------------------
+
+# I'll be back!
+returnyAdvanceState <- function(state) {
+  tape <- state$tape
+  pos <- state$pos
+  relBase <- state$relBase
+
+
+  instruction <- tapeGet(tape, pos)
+
+  opcode <- instruction %% 100
+
+  if(opcode == 99) {
+    state$halt <- TRUE
+  } else {
+
+    opcodeNParams <- c(
+      3,
+      3,
+      1,
+      1,
+      2,
+      2,
+      3,
+      3,
+      1
+    )
+
+    nParams <- opcodeNParams[opcode]
+    paramModes <- rev(((instruction %/% 100) %% 10^(nParams:1)) %/% 10^((nParams-1):0))
+
+    paramIdx <- ((pos + 1):(pos + nParams))
+
+    params <- tapeGet(tape, paramIdx)
+
+    args <- tapeGet(tape, params, paramModes, relBase)
+
+    switch(
+      # Oh R, you silly stupid language, you...
+      # Cast the opcode as character because otherwise multi-digit codes won't work
+      as.character(opcode),
+
+      # Addition
+      "1" = {
+        to <- params[3] + ifelse(paramModes[3] == 0, 0, relBase)
+
+        state$tape <- tapeSet(
+          tape,
+          to,
+          args[1] + args[2])
+
+        state$pos <- pos + 4
+      },
+
+      # Multiplication
+      "2" = {
+        to <- ifelse(paramModes[3] == 0, params[3], params[3] + relBase)
+
+        state$tape <- tapeSet(
+          tape,
+          to,
+          args[1] * args[2])
+
+        state$pos <- pos + 4
+      },
+
+      # Input
+      "3" = {
+        if(is.null(state$valueIn)) {
+          state$needValue <- TRUE
+        } else {
+          to <- ifelse(paramModes[1] == 0, params[1], params[1] + relBase)
+
+          state$tape <- tapeSet(
+            tape,
+            to,
+            state$valueIn)
+
+          state$valueIn <- NULL
+          state$needValue <- FALSE
+
+          state$pos <- pos + 2
+        }
+      },
+
+      # Output
+      "4" = {
+        state$valueOut <- args[1]
+        state$pos <- pos + 2
+      },
+
+      # Jump if true
+      "5" = {
+        state$pos <- ifelse(args[1] != 0, args[2], pos + 3)
+      },
+
+      # Jump if false
+      "6" = {
+        state$pos <- ifelse(args[1] == 0, args[2], pos + 3)
+      },
+
+      # Compare less
+      "7" = {
+        to <- ifelse(paramModes[3] == 0, params[3], params[3] + relBase)
+
+        state$tape <- tapeSet(tape,
+                              to,
+                              ifelse(args[1] < args[2], 1, 0))
+
+        state$pos <- pos + 4
+      },
+
+      # Compare equal
+      "8" = {
+        to <- ifelse(paramModes[3] == 0, params[3], params[3] + relBase)
+
+        state$tape <- tapeSet(tape,
+                              to,
+                              ifelse(args[1] == args[2], 1, 0))
+
+        state$pos <- pos + 4
+      },
+
+      # Adjust relative base
+      "9" = {
+        state$relBase <- relBase + args[1]
+
+        state$pos <- state$pos + 2
+      }
+    )
+  }
+
+  state
+}
