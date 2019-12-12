@@ -28,4 +28,30 @@ day12 <- function(path) {
   pot1 <- moons1[, sum((abs(x)+abs(y)+abs(z))*(abs(vx)+abs(vy)+abs(vz)))]
 
   message(pot1)
+
+  sumilateLoop <- function(x0, vx0) {
+    steps <- 0
+    x <- x0
+    vx <- vx0
+    repeat { # Never thougt I'd ever use that one
+      if(steps %% 1000 == 0) {
+        message(steps)
+      }
+      for(i in seq(length(x))) {
+        vx[i] <- vx[i] + sum(sign(x[-i] - x[i]))
+      }
+      x <- x + vx
+      steps <- steps + 1
+
+      if(all(x0 == x & vx == vx0)) {
+        break;
+      }
+    }
+
+    steps
+  }
+
+  lx <- sumilateLoop(moons[, x], moons[, vx])
+  ly <- sumilateLoop(moons[, y], moons[, vy])
+  lz <- sumilateLoop(moons[, z], moons[, vz])
 }
