@@ -277,6 +277,9 @@ tapeSet <-  function(tape, address, value) {
   tape
 }
 
+readICCTape <- function(f) {
+  as.numeric(strsplit(readLines(f), ",")[[1]])
+}
 
 # input methods -----------------------------------------------------------
 
