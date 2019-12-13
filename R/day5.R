@@ -1,4 +1,4 @@
-day5 <- function(path, debug = 0) {
+day5 <- function(path = "inst/input/day5/input.txt", debug = 0) {
   tape <- as.numeric(strsplit(readLines(path), ",")[[1]])
 
   message("part 1")

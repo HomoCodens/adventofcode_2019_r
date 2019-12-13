@@ -1,4 +1,4 @@
-day2 <- function(path) {
+day2 <- function(path = "inst/input/day2/input.txt") {
   initial_tape <- as.numeric(strsplit(readLines(path), ",")[[1]])
 
   tape <- initial_tape

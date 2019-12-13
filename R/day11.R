@@ -1,4 +1,4 @@
-day11 <- function(path) {
+day11 <- function(path = "inst/input/day11/input.txt") {
  tape <- readICCTape(path)
 
  ehpr <- function(initialCell = 0, output = NULL) {

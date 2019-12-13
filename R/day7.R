@@ -1,4 +1,4 @@
-day7 <- function(path) {
+day7 <- function(path = "inst/input/day7/input.txt") {
   tape <- readICCTape(path)
 
   getPerms <- function(v) {

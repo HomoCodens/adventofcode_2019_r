@@ -1,4 +1,4 @@
-day9 <- function(path) {
+day9 <- function(path = "inst/input/day9/input.txt") {
   tape <- readICCTape(path)
 
   in1 <- iccInput(1)

@@ -1,5 +1,5 @@
 # TODO: document cleverness. now sleep tho
-day10 <- function(path) {
+day10 <- function(path = "inst/input/day10/input.txt") {
   l <- readLines(path)
 
   asteroids <- do.call(rbind, lapply(l, function(x){strsplit(x, "")[[1]]}))

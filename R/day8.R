@@ -1,4 +1,4 @@
-day8 <- function(path) {
+day8 <- function(path = "inst/input/day8/input.txt") {
   digits <- as.numeric(strsplit(readLines(path), "")[[1]])
 
   w <- 25
