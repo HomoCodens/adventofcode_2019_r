@@ -61,7 +61,7 @@ runIntCodeComputer <- function(computers,
     }
   }
 
-  computers
+  invisible(computers)
 }
 
 # Main driver
