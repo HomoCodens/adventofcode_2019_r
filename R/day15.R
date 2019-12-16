@@ -211,7 +211,7 @@ day15 <- function(path = "inst/input/day15/input.txt") {
     }
   }
 
-  droid <- repairDroidProgram(0.01, debug = 0)
+  droid <- repairDroidProgram(0.0, debug = 0)
 
   runIntCodeComputer(list(
     list(
