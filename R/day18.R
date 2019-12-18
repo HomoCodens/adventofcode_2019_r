@@ -1,0 +1,431 @@
+day18 <- function(path = "inst/input/day18/input.txt") {
+  l <- readLines(path)
+  map <- do.call(rbind, unlist(lapply(l, strsplit, ""), recursive = FALSE))
+
+  findAvailableKeys <- function(map, x, y) {
+    edge <- list(
+      list(
+        x = x,
+        y = y,
+        dist = 0
+      )
+    )
+
+    done <- c()
+    keys <- data.table()
+
+    dy <- c(0, 0, -1, 1)
+    dx <- c(-1, 1, 0, 0)
+
+    freeTypes <- c(letters, ".", "@")
+    blockingTypes <- c(LETTERS, "#")
+    keyTypes <- letters
+
+    while(length(edge) > 0) {
+      at <- edge[[1]]
+      edge <- edge[-1]
+
+      done <- c(done, paste(c(at$x, at$y), collapse = "-"))
+
+      x <- at$x
+      y <- at$y
+      dist <- at$dist
+
+      for(i in seq(4)) {
+        xx <- x + dx[i]
+        yy <- y + dy[i]
+        cand <- map[yy, xx]
+        if(!cand %in% blockingTypes) {
+          id <- paste(c(xx, yy), collapse = "-")
+          if(!id %in% done) {
+            edge[[length(edge) + 1]] <- list(
+              x = xx,
+              y = yy,
+              dist = dist + 1)
+
+            if(cand %in% keyTypes) {
+              keys <- rbind(keys, data.table(
+                x = xx,
+                y = yy,
+                dist = dist + 1,
+                keyId = cand
+              ))
+            }
+          }
+        }
+      }
+    }
+
+    keys
+  }
+
+  doTheMarine <- function(map, quicksaves = list(), keysFound = NULL) {
+    o <- which(map == "@")
+    x <- col(map)[o]
+    y <- row(map)[o]
+
+    saveId <- paste(keysFound, collapse = "")
+    if(!is.null(quicksaves[[saveId]])) {
+      # message("Struck the cache!")
+      keys <- quicksaves[[saveId]]$keys
+      newMap <- quicksaves[[saveId]]$map
+    } else {
+      keys <- findAvailableKeys(map, x, y)
+      newMap <- map
+      newMap[o] <- "."
+      quicksaves[[saveId]] <- list(
+        keys = keys,
+        map = newMap
+      )
+    }
+
+    if(nrow(keys) == 0) {
+      return(list(
+        dist = 0,
+        quicksaves = quicksaves))
+    } else {
+      optimum <- Inf
+      for(i in seq(nrow(keys))) {
+        key <- keys[i, ]
+        newMap[newMap == toupper(key$keyId)] <- "."
+        newMap[newMap == key$keyId] <- "."
+        mp <- newMap
+        mp[key$y, key$x] <- "@"
+        d <- doTheMarine(mp, quicksaves, sort(c(keysFound, keys$keyId)))
+        if(d$dist + key$dist < optimum) {
+          optimum <- d$dist + key$dist
+        }
+
+        quicksaves <- d$quicksaves
+      }
+      return(list(
+        dist = optimum,
+        quicksaves = quicksaves
+      ))
+    }
+  }
+
+  doTheMarine(map)$dist
+}
+
+# day18 <- function(path = "inst/input/day18/input.txt") {
+#   l <- readLines(path)
+#   map <- do.call(rbind, unlist(lapply(l, strsplit, ""), recursive = FALSE))
+#
+#   o <- which(map == "@")
+#   xo <- col(map)[o]
+#   yo <- row(map)[o]
+#
+#   getAdjacentNodes <- function(map, x, y) {
+#
+#     edge <- list(
+#       list(
+#         x = x,
+#         y = y,
+#         dist = 0
+#       )
+#     )
+#
+#     done <- c()
+#     neighbours <- list()
+#
+#     dy <- c(0, 0, -1, 1)
+#     dx <- c(-1, 1, 0, 0)
+#
+#     while(length(edge) > 0) {
+#       at <- edge[[1]]
+#       edge <- edge[-1]
+#
+#       x <- at$x
+#       y <- at$y
+#       dist <- at$dist
+#
+#       done <- c(done, paste(c(x, y), collapse = "-"))
+#
+#       for(i in seq(4)) {
+#         xx <- x + dx[i]
+#         yy <- y + dy[i]
+#         cand <- map[yy, xx]
+#         if(cand != "#") {
+#           id <- paste(c(xx, yy), collapse = "-")
+#           if(!(id %in% done)) {
+#             if(cand != ".") {
+#               neighbours[[cand]] <- dist + 1
+#             }
+#
+#             if(!cand %in% LETTERS) {
+#               edge[[length(edge) + 1]] <- list(
+#                 x = xx,
+#                 y = yy,
+#                 dist = dist + 1
+#               )
+#             }
+#           }
+#         }
+#       }
+#     }
+#     neighbours
+#   }
+#
+#
+#   # 1) Build a graph of every Thing worth visiting + distances --------------
+#   edges <- data.table()
+#
+#   for(node in which(!map %in% c("#", "."))) {
+#     xo <- col(map)[node]
+#     yo <- row(map)[node]
+#     neighbourhood <- getAdjacentNodes(map, xo, yo)
+#     edges <- rbind(edges, data.table(
+#       from = map[node],
+#       to = names(neighbourhood),
+#       dist = unlist(neighbourhood)
+#     ))
+#   }
+#
+#   removeFromWorld <- function(graph, node) {
+#     incoming <- graph[to == node]
+#
+#     newEdges <- data.table()
+#     for(i in seq(nrow(incoming)-1)) {
+#       for(j in (i+1):nrow(incoming)) {
+#         newEdges <- rbind(newEdges, data.table(
+#           from = c(incoming[j, from], incoming[i, from]),
+#           to = c(incoming[i, from], incoming[j, from]),
+#           dist = incoming[i, dist] + incoming[j, dist]
+#         ))
+#       }
+#     }
+#
+#     rbind(
+#       graph[from != node & to != node],
+#       newEdges
+#     )[, .SD[dist == min(dist)], by = c("from", "to")] # This smells slow
+#   }
+#
+#   doTheMarine <- function(graph, quickSaves = list(), keysGathered = NULL) {
+#     # I don't think there was quicksaving in Doom tho
+#     worldId <- paste(keysGathered, collapse = "")
+#     if(!is.null(quickSaves[[worldId]])) {
+#       world <- quickSaves[[worldId]]
+#     } else {
+#       graph <- graph[to != "@"]
+#       candidates <- graph[from == "@" & to %in% letters]
+#       graph <- graph[from != "@"]
+#       for(i in nrow(candidates)) {
+#         graph <- removeFromWorld(graph, toupper(candidates[i, to]))
+#       }
+#     }
+#   }
+#
+#   # doTheMarine <- function(graph, dist = 0, best = Inf) {
+#   #   message("Best: ", best, " Current: ", dist)
+#   #
+#   #   # We don't care about walking TO where we are
+#   #   graph <- graph[to != "@"]
+#   #
+#   #   candidates <- graph[from == "@" & to %in% letters]
+#   #
+#   #   # Pruning clause
+#   #   if(dist >= best) {
+#   #     message("Nopeing with ", candidates[, .N], " candidates!!!")
+#   #     return(
+#   #       list(
+#   #         dist = dist,
+#   #         best = dist
+#   #       )
+#   #     )
+#   #     message("If you can read this: RUN!!!")
+#   #   }
+#   #
+#   #   # message(candidates[, to])
+#   #
+#   #   optimum <- Inf
+#   #   for(i in seq(nrow(candidates))) {
+#   #     newGraph <- graph[from != "@"]
+#   #
+#   #     if(nrow(newGraph) == 0) {
+#   #       # Recursion hath ended
+#   #       newDist <- candidates[i, dist]
+#   #       message("Reached bottom for the umpteenth time with ", newDist + dist, "...")
+#   #       if(best > newDist + dist) {
+#   #         best <- newDist + dist
+#   #         message("New highscore: ", best)
+#   #       }
+#   #     } else {
+#   #       key <- candidates[i, to]
+#   #       door <- toupper(key)
+#   #
+#   #       # "Move"
+#   #       newGraph[newGraph == key] <- "@"
+#   #
+#   #       # Open door
+#   #       if(newGraph[, any(to == door)]) {
+#   #         if(newGraph[, !all(to %in% c(door, "@"))]) {
+#   #           newGraph <- removeFromWorld(newGraph, door)
+#   #           out <- doTheMarine(newGraph, dist + candidates[i, dist], best)
+#   #
+#   #           newDist <- out$dist + candidates[i, dist]
+#   #           if(best > out$best) {
+#   #             best <- out$best
+#   #           }
+#   #         } else {
+#   #           # Nother way to end
+#   #           newDist <- candidates[i, dist]
+#   #           if(best > newDist + dist) {
+#   #             best <- newDist + dist
+#   #             message("New highscore, the other way round! ", best)
+#   #           }
+#   #         }
+#   #       }
+#   #     }
+#   #
+#   #     if(newDist < optimum) {
+#   #       optimum <- newDist
+#   #     }
+#   #   }
+#   #
+#   #   list(
+#   #     dist = optimum,
+#   #     best = best
+#   #   )
+#   # }
+#
+#   # Soo I just now realized that the @ symbolizes where we are... at *badum-tss*
+#   doTheMarine(edges)
+# }
+
+# day18 <- function(path = "inst/input/day18/input.txt") {
+#   l <- readLines(path)
+#   map <- do.call(rbind, unlist(lapply(l, strsplit, ""), recursive = FALSE))
+#
+#   findAvailableKeys <- function(map, x, y) {
+#     edge <- list(
+#       list(
+#         x = x,
+#         y = y,
+#         dist = 0
+#       )
+#     )
+#
+#     done <- c()
+#     keys <- list()
+#
+#     dy <- c(0, 0, -1, 1)
+#     dx <- c(-1, 1, 0, 0)
+#
+#     freeTypes <- c(letters, ".", "@")
+#     blockingTypes <- c(LETTERS, "#")
+#     keyTypes <- letters
+#
+#     while(length(edge) > 0) {
+#       at <- edge[[1]]
+#       edge <- edge[-1]
+#
+#       done <- c(done, paste(c(at$x, at$y), collapse = "-"))
+#
+#       x <- at$x
+#       y <- at$y
+#       dist <- at$dist
+#
+#       for(i in seq(4)) {
+#         xx <- x + dx[i]
+#         yy <- y + dy[i]
+#         cand <- map[yy, xx]
+#         if(!cand %in% blockingTypes) {
+#           id <- paste(c(xx, yy), collapse = "-")
+#           if(!id %in% done) {
+#             edge[[length(edge) + 1]] <- list(
+#               x = xx,
+#               y = yy,
+#               dist = dist + 1)
+#
+#             if(cand %in% keyTypes) {
+#               keys[[cand]] <- list(
+#                 x = xx,
+#                 y = yy,
+#                 dist = dist + 1,
+#                 keyId = cand
+#               )
+#             }
+#           }
+#         }
+#       }
+#     }
+#
+#     keys
+#   }
+#
+#   doTheMarine <- function(map) {
+#     o <- which(map == "@")
+#     x <- col(map)[o]
+#     y <- row(map)[o]
+#
+#     keys <- findAvailableKeys(map, x, y)
+#     if(length(keys) == 0) {
+#       return(0)
+#     } else {
+#       message(sapply(keys, '[[', "keyId"))
+#       optimum <- Inf
+#       for(i in seq(length(keys))) {
+#         key <- keys[[i]]
+#         newMap <- map
+#         newMap[o] <- "."
+#         newMap[key$y, key$x] <- "@"
+#         # Open mungo bean (or something like that...)
+#         newMap[newMap == toupper(key$keyId)] <- "."
+#         d <- doTheMarine(newMap) + key$dist
+#         if(d < optimum) {
+#           optimum <- d
+#         }
+#       }
+#
+#       return(optimum)
+#     }
+#   }
+#
+#   doTheMarine(map)
+# }
+
+# findAvailableKeysSlowly <- function(map, x, y) {
+#   edge <- data.table(
+#     x = x,
+#     y = y,
+#     type = "@",
+#     dist = 0
+#   )
+#   done <- data.table()
+#   keys <- data.table()
+#
+#   while(nrow(edge)) {
+#     # "pop"
+#     at <- edge[1, ]
+#     edge <- edge[-1]
+#
+#     dy <- c(0, 0, -1, 1)
+#     dx <- c(-1, 1, 0, 0)
+#
+#     # Huh...
+#     # https://stackoverflow.com/questions/4452039/rs-equivalent-to-ind2sub-sub2ind-in-matlab/14296902#14296902
+#     neighbours <- map[cbind(at$y + dy, at$x + dx)]
+#     free <- !grepl("[#A-Z]", neighbours)
+#
+#     candidates <- data.table(
+#       x = at$x + dx[free],
+#       y = at$y + dy[free],
+#       type = neighbours[free],
+#       dist = at$dist + 1)
+#
+#     if(nrow(done) == 0) {
+#       done <- at
+#       edge <- candidates
+#     } else {
+#       done <- rbind(done, at)
+#       candidates <- candidates[done[candidates, on = c("x", "y")][, is.na(dist)]]
+#       edge <- rbind(edge, candidates)
+#     }
+#
+#     keys <- rbind(keys, candidates[grepl("[a-z]", type), .(x = x, y = y, keyId = type, dist = dist)])
+#   }
+#
+#   keys
+# }
