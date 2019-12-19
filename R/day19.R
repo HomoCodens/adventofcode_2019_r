@@ -25,25 +25,13 @@ day19 <- function(path = "inst/input/day19/input.txt") {
   message(sum(sum(map == "#")))
 
   # Reuse the initial scan
-  map <- mm
-  edge <- data.table()
 
-  if(any(map[nrow(map), ] == "#")) {
-    edge <- rbind(edge, data.table(
-      x = which(map[nrow(map), ] == "#"),
-      y = nrow(map)
-    ))
-  }
-
-  if(any(map[, ncol(map)] == "#")) {
-    edge <- rbind(edge, data.table(
-      x = ncol(map),
-      y = which(map[, ncol(map)] == "#")
-    ))
-  }
-  edge <- unique(edge)
-  setorder(edge, y, x)
-  # Technically edge should be 1 step further ahead but doesn't hurt doing them again :man-shrugging:
+  # For different inputs this would have to be done different (l2r instead of t2b,
+  # maybe even filling if initial scan hits corner)
+  bottom <- nrow(map)
+  bottomIsAffected <- which(map[bottom, ] == "#")
+  leftEdge <- min(bottomIsAffected)
+  rightEdge <- max(bottomIsAffected)
 
   growMap <- function(map, dir) {
     message("Growing map ", ifelse(dir == 1, "down", "sideways"))
@@ -57,60 +45,76 @@ day19 <- function(path = "inst/input/day19/input.txt") {
   sizeNeedsFitting <- 100
   done <- FALSE
   while(!done) {
-  #for(i in seq(1000)) {
-    node <- edge[1]
-
-    message("Checking ", node$x, "-", node$y)
-
-    edge <- edge[-1]
-    if(node$x == ncol(map)) {
+  #for(i in seq(10)) {
+    if(rightEdge == ncol(map)) {
       map <- growMap(map, 0)
     }
 
-    if(node$y == nrow(map)) {
+    if(bottom == nrow(map)) {
       map <- growMap(map, 1)
     }
 
-    # Anything diagonally below a cell that is not on the right edge MUST be affeteded
-    if(map[node$y, node$x + 1] != ".") {
-      map[node$y + 1, node$x + 1] <- "#"
+    # Step 1 further
+    bottom <- bottom + 1
+    message("Now at ", bottom)
+
+    # Scan for beginning of new left edge
+    repeat {
+      isAffected <- FALSE
+      input <- iccInput(c(leftEdge - 1, bottom - 1))
+      output <- function(x) {
+        isAffected <<- x == 1
+      }
+
+      runIntCodeComputer(list(list(
+        tape = tape,
+        iccin = input,
+        iccout = output
+      )))
+
+      if(isAffected) {
+        break;
+      } else {
+        leftEdge <- leftEdge + 1
+      }
     }
 
-    input <- iccInput(c(node$x - 1, node$y - 1))
-    isAffected <- FALSE
-    output <- function(x) {
-      isAffected <<- x == 1
+    # Scan for new right edge
+    repeat {
+      isAffected <- FALSE
+      input <- iccInput(c(rightEdge, bottom - 1))
+      output <- function(x) {
+        isAffected <<- x == 1
+      }
+
+      runIntCodeComputer(list(list(
+        tape = tape,
+        iccin = input,
+        iccout = output
+      )))
+
+      if(isAffected) {
+        rightEdge <- rightEdge + 1
+      } else {
+        break;
+      }
     }
 
-    runIntCodeComputer(list(list(
-      tape = tape,
-      iccin = input,
-      iccout = output
-    )))
-
-
-    message("Is ", ifelse(isAffected, "", "not "), "affected")
-
-    if(isAffected) {
-      map[node$y, node$x] <- "#"
-      newCandidates <- data.table(
-        x = c(node$x, node$x + 1),
-        y = c(node$y + 1, node$y)
-      )
-
-      # Baaaaad! Slooooow!!! Lazy...
-      edge <- unique(rbind(edge, newCandidates))
-      setorder(edge, y, x)
-    }
+    map[bottom, leftEdge:rightEdge] <- "#"
 
     # Check for whether condition met
-    if(all(nrow(map) >= sizeNeedsFitting + node$y, ncol(map) >= sizeNeedsFitting + node$x)) {
-      if(all(map[(node$y - sizeNeedsFitting):node$y, (node$x - sizeNeedsFitting):node$x] == "#")) {
+    if(nrow(map) >= sizeNeedsFitting + bottom && ncol(map) >= sizeNeedsFitting + leftEdge) {
+      if(all(map[(bottom-sizeNeedsFitting + 1):bottom, leftEdge:(leftEdge + sizeNeedsFitting - 1)] == "#")) {
         done <- TRUE
-        map[(node$y - sizeNeedsFitting):node$y, (node$x - sizeNeedsFitting):node$x] <- "O"
+        # map[(bottom-sizeNeedsFitting + 1):bottom, leftEdge:(leftEdge + sizeNeedsFitting - 1)] <- "O"
+        map[(bottom-sizeNeedsFitting + 1), leftEdge] <- "O"
       }
     }
   }
-  cat("\014")
-  cat(paste(apply(map, 1, paste, collapse = ""), collapse = "\n"))
+  # cat("\014")
+  # cat(paste(apply(map, 1, paste, collapse = ""), collapse = "\n"))
+
+  trueX <- leftEdge - 1
+  trueY <- bottom - sizeNeedsFitting
+  message(trueX*10000 + trueY)
 }
