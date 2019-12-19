@@ -59,53 +59,59 @@ day18 <- function(path = "inst/input/day18/input.txt") {
     keys
   }
 
-  doTheMarine <- function(map, quicksaves = list(), keysFound = NULL) {
+  quicksaves <- list()
+  nCalls <- 0
+
+  doTheMarine <- function(map, keysFound = NULL) {
     o <- which(map == "@")
     x <- col(map)[o]
     y <- row(map)[o]
 
-    saveId <- paste(keysFound, collapse = "")
-    if(!is.null(quicksaves[[saveId]])) {
-      # message("Struck the cache!")
-      keys <- quicksaves[[saveId]]$keys
-      newMap <- quicksaves[[saveId]]$map
-    } else {
-      keys <- findAvailableKeys(map, x, y)
-      newMap <- map
-      newMap[o] <- "."
-      quicksaves[[saveId]] <- list(
-        keys = keys,
-        map = newMap
-      )
+    nCalls <<- nCalls + 1
+    if(!(nCalls %% 10)) {
+      message(nCalls)
+      message("Btw, we now have ", length(quicksaves), " saves to go on.")
+      if(length(quicksaves)) {
+        message("Those we have hit ", sum(sapply(quicksaves, `[[`, "strikes")), " times")
+      }
     }
 
-    if(nrow(keys) == 0) {
-      return(list(
-        dist = 0,
-        quicksaves = quicksaves))
+    saveId <- paste(c(keysFound, o), collapse = "")
+    #message(saveId)
+    if(!is.null(quicksaves[[saveId]])) {
+      #message("Struck the cache!")
+      quicksaves[[saveId]]$strikes <<- quicksaves[[saveId]]$strikes + 1
+      return(quicksaves[[saveId]]$value)
     } else {
-      optimum <- Inf
-      for(i in seq(nrow(keys))) {
-        key <- keys[i, ]
-        newMap[newMap == toupper(key$keyId)] <- "."
-        newMap[newMap == key$keyId] <- "."
-        mp <- newMap
-        mp[key$y, key$x] <- "@"
-        d <- doTheMarine(mp, quicksaves, sort(c(keysFound, keys$keyId)))
-        if(d$dist + key$dist < optimum) {
-          optimum <- d$dist + key$dist
-        }
+      keys <- findAvailableKeys(map, x, y)
+      map[o] <- "."
 
-        quicksaves <- d$quicksaves
+      out <- 0
+      if(nrow(keys) > 0) {
+        optimum <- Inf
+        for(i in seq(nrow(keys))) {
+          key <- keys[i, ]
+          newMap <- map
+          newMap[newMap == toupper(key$keyId)] <- "."
+          newMap[newMap == key$keyId] <- "."
+          newMap[key$y, key$x] <- "@"
+          d <- doTheMarine(newMap, sort(c(keysFound, key$keyId)))
+          if(d + key$dist < optimum) {
+            optimum <- d + key$dist
+          }
+        }
+        out <- optimum
       }
-      return(list(
-        dist = optimum,
-        quicksaves = quicksaves
-      ))
+      quicksaves[[saveId]] <<- list(
+        value = out,
+        strikes = 0
+      )
+
+      return(out)
     }
   }
 
-  doTheMarine(map)$dist
+  doTheMarine(map)
 }
 
 # day18 <- function(path = "inst/input/day18/input.txt") {
