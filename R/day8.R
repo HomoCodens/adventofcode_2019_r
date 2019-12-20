@@ -26,5 +26,5 @@ day8 <- function(path = "inst/input/day8/input.txt") {
 
   image <- t(image)
 
-  cat(paste(apply(ifelse(image == 1, "▮", "▯" ),1, paste, collapse = ""), collapse = "\n"))
+  cat(paste(apply(ifelse(image == 1, "@", " " ),1, paste, collapse = ""), collapse = "\n"))
 }
