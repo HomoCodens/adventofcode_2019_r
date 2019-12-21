@@ -323,9 +323,13 @@ iccManualInput <- function() {
 #'
 #' @param values Values to feed to input
 #' @param loop Should the values repeat?
-iccInput <- function(values, loop = FALSE) {
+iccInput <- function(values, loop = FALSE, ASCII = FALSE) {
   i <- 1
+  if(ASCII) {
+    values <- as.numeric(sapply(strsplit(values, "")[[1]], charToRaw))
+  }
   nValues <- length(values)
+
 
   function() {
     if(i > nValues) {
