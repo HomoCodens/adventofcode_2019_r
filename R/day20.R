@@ -92,11 +92,15 @@ day20 <- function(path = "inst/input/day20/input.txt") {
 
     steps <- fdeque()
 
+    visited <- list(
+      matrix(FALSE, nrow(map), ncol(map))
+    )
+
+    visited[[1]][start[1], start[2]] <- TRUE
+    maxLevelReached <- 1
+
     edge <- fdeque()
     edge$push(start)
-    done <- c(getNodeId(start, "AA"))
-    doneSize <- 1
-    doneElems <- 1
     while(!all(edge$peekBack()[1:3] == end[1:3])) {
       node <- edge$shift()
       nodeId <- getNodeId(node, map[node[1], node[2]])
@@ -108,23 +112,25 @@ day20 <- function(path = "inst/input/day20/input.txt") {
       neighbours <- getNeighbours(map, node, recursive)
 
       for(n in neighbours) {
-        id <- getNodeId(n, map[n[1], n[2]])
+        y <- n[1]
+        x <- n[2]
+        l <- n[3]
+        if(maxLevelReached <= l) {
+          maxLevelReached <- maxLevelReached + 1
+          visited[[maxLevelReached]] <- matrix(FALSE, nrow(map), ncol(map))
+        }
+        id <- getNodeId(n, map[y, x])
         steps$push(c(nodeId, id))
-        if(id %in% done) {
+        if(visited[[l+1]][y, x]) {
           next;
         }
 
-        if(doneSize == doneElems) {
-          done <- c(done, vector("character", doneSize))
-          doneSize <- 2*doneSize
-        }
-
-        doneElems <- doneElems + 1
-        done[doneElems] <- id
-
+        visited[[l+1]][y, x] <- TRUE
         edge$push(n)
       }
     }
+
+    print(edge$peekBack())
 
     at <- getNodeId(end, "ZZ")
     pathTaken <- fdeque()
