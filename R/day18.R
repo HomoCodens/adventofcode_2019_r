@@ -4,16 +4,12 @@ day18 <- function(path = "inst/input/day18/input.txt") {
   map <- do.call(rbind, unlist(lapply(l, strsplit, ""), recursive = FALSE))
 
   findAvailableKeys <- function(map, x, y) {
-    edge <- as.rdeque(list(
-      list(
-        x = x,
-        y = y,
-        dist = 0
-      )
-    ))
+    edge <- fdeque()
+    edge$push(c(x, y, 0))
 
-    done <- c()
-    keys <- rstack()
+    visited <- matrix(FALSE, nrow(map), ncol(map))
+
+    keys <- fdeque()
 
     dy <- c(0, 0, -1, 1)
     dx <- c(-1, 1, 0, 0)
@@ -22,15 +18,12 @@ day18 <- function(path = "inst/input/day18/input.txt") {
     blockingTypes <- c(LETTERS, "#")
     keyTypes <- letters
 
-    while(length(edge) > 0) {
-      at <- peek_front(edge)
-      edge <- without_front(edge)
+    while(!edge$empty()) {
+      at <- edge$shift()
 
-      done <- c(done, paste(c(at$x, at$y), collapse = "-"))
-
-      x <- at$x
-      y <- at$y
-      dist <- at$dist
+      x <- at[1]
+      y <- at[2]
+      dist <- at[3]
 
       for(i in seq(4)) {
         xx <- x + dx[i]
@@ -38,26 +31,22 @@ day18 <- function(path = "inst/input/day18/input.txt") {
         cand <- map[yy, xx]
         if(!cand %in% blockingTypes) {
           id <- paste(c(xx, yy), collapse = "-")
-          if(!id %in% done) {
-            edge <- insert_back(edge, list(
-              x = xx,
-              y = yy,
-              dist = dist + 1))
+          message(id)
+          print(visited[yy, xx])
+          if(!visited[yy, xx]) {
+            edge$push(c(xx, yy, dist + 1))
 
             if(cand %in% keyTypes) {
-              keys <- insert_top(keys, data.table(
-                x = xx,
-                y = yy,
-                dist = dist + 1,
-                keyId = cand
-              ))
+              keys$push(list(x = xx, y = yy, dist = dist + 1, keyId = cand))
             }
+
+            visited[yy, xx] <- TRUE
           }
         }
       }
     }
 
-    as.data.table(keys)
+    keys$values()
   }
 
   quicksaves <- list()
@@ -67,6 +56,10 @@ day18 <- function(path = "inst/input/day18/input.txt") {
     o <- which(map == "@")
     x <- col(map)[o]
     y <- row(map)[o]
+
+    if(length(o) == 0) {
+      return(0)
+    }
 
     nCalls <<- nCalls + 1
     if(!(nCalls %% 1)) {
@@ -90,10 +83,9 @@ day18 <- function(path = "inst/input/day18/input.txt") {
       map[o] <- "."
 
       out <- 0
-      if(nrow(keys) > 0) {
+      if(length(keys) > 0) {
         optimum <- Inf
-        for(i in seq(nrow(keys))) {
-          key <- keys[i, ]
+        for(key in keys) {
           newMap <- map
           newMap[newMap == toupper(key$keyId)] <- "."
           newMap[newMap == key$keyId] <- "."

@@ -7,7 +7,7 @@ fdeque <- function(initialSize = 1) {
   head <- 0
   tail <- 1
   nElements <- 0
-  size <- initialSize  # Start at size 1 to avoid weird edge cases
+  arraySize <- initialSize  # Start at size 1 to avoid weird edge cases
   data <- vector("list", initialSize)
 
 
@@ -15,31 +15,31 @@ fdeque <- function(initialSize = 1) {
   # housekeeping ------------------------------------------------------------
 
   bumpHead <- function() {
-    head <<- (head %% size) + 1
+    head <<- (head %% arraySize) + 1
   }
 
   dumpHead <- function() {
-    head <<- ifelse(head == 1, size, head - 1)
+    head <<- ifelse(head == 1, arraySize, head - 1)
   }
 
   bumpTail <- function() {
-    tail <<- (tail %% size) + 1
+    tail <<- (tail %% arraySize) + 1
   }
 
   dumpTail <- function() {
-    tail <<- ifelse(tail == 1, size, tail - 1)
+    tail <<- ifelse(tail == 1, arraySize, tail - 1)
   }
 
   grow <- function() {
       if(tail == 1) {
         # Data neatly fills whole array
-        data <<- c(data, vector("list", size))
+        data <<- c(data, vector("list", arraySize))
       } else {
         # Data is split somewhere in the middle
-        data <<- c(data[1:head], vector("list", size), data[tail:size])
-        tail <<- tail + size
+        data <<- c(data[1:head], vector("list", arraySize), data[tail:arraySize])
+        tail <<- tail + arraySize
       }
-      size <<- size*2
+      arraySize <<- arraySize*2
   }
 
   # helpers -----------------------------------------------------------------
@@ -48,10 +48,14 @@ fdeque <- function(initialSize = 1) {
     nElements == 0
   }
 
+  size <- function() {
+    nElements
+  }
+
   contains <- function(x) {
     if(any(data[1:head] == x)) {
       return(TRUE)
-    } else if(tail > 1 && any(data[tail:size] == x)) {
+    } else if(tail > 1 && any(data[tail:arraySize] == x)) {
         return(TRUE)
     }
 
@@ -62,14 +66,14 @@ fdeque <- function(initialSize = 1) {
     if(tail == 1) {
       data[tail:head]
     } else {
-      c(data[head:1], data[size:tail])
+      c(data[head:1], data[arraySize:tail])
     }
   }
 
   # front ops ---------------------------------------------------------------
 
   push <- function(x) {
-    if(nElements == size) {
+    if(nElements == arraySize) {
       grow()
     }
 
@@ -96,7 +100,7 @@ fdeque <- function(initialSize = 1) {
   # back ops (if you're into that kind of thing) -----------------------------
 
   unshift <- function(x) {
-    if(nElements == size) {
+    if(nElements == arraySize) {
       grow()
     }
 
@@ -129,6 +133,7 @@ fdeque <- function(initialSize = 1) {
     shift = shift,
     peekBack = peekBack,
     empty = empty,
+    size = size,
     contains = contains,
     values = values
   )
