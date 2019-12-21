@@ -1,20 +1,17 @@
-day11 <- function(path) {
-  devtools::load_all()
-  path <- "inst/input/day11/input.txt"
- tape <- as.numeric(strsplit(readLines(path), ",")[[1]])
+day11 <- function(path = "inst/input/day11/input.txt") {
+ tape <- readICCTape(path)
 
-
- ehpr <- function(output = NULL) {
+ ehpr <- function(initialCell = 0, output = NULL) {
 
    pos <- c(0, 0)
    dir <- c(0, 1)
 
-   cells <- data.table(x = 0, y = 0, color = 0)
+   cells <- data.table(x = 0, y = 0, color = initialCell)
    state <- 0 # 0 - Awaiting color, 1 - Awaiting rotation
 
    function(input = NULL) {
 
-     if(!is.function(input)) {
+     if(!is.null(input)) {
        # Being used as output (data in)
 
        if(!is.null(output)) {
@@ -28,10 +25,6 @@ day11 <- function(path) {
          state <<- 1
 
          # message(sprintf("Painting (%d %d) %d", pos[1], pos[2], input))
-
-         # The uncool way.
-         # Need to address stack overflow (the thing, not the website)
-         # message(sprintf("Now having painted %d cells...", cells[, .N]))
        } else {
          if(input == 0) {
            # Turn left
@@ -58,40 +51,50 @@ day11 <- function(path) {
      } else {
        # Being used as input (data out)
        # message(sprintf("Sending color %d at (%d %d)", cells[x == pos[1] & y == pos[2], color], pos[1], pos[2]))
-       input(cells[x == pos[1] & y == pos[2], color])
+       cells[x == pos[1] & y == pos[2], color]
      }
    }
  }
 
- ehprProg <- ehpr(message)
-
- # testPut <- c(1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0)
- #
- # for(i in testPut) {
- #   ehprProg(i)
- # }
+ ehprProg <- ehpr()
 
  ehprOut <- function(tape) {
-   #ells <- as.list(environment(ehprProg))$cells
-   message(tape)
-   #message(ells[, .N])
+   ells <- as.list(environment(ehprProg))$cells
+   message(ells[, .N])
  }
 
- runIntCodeComputer(tape, iccin = ehprProg, iccout = ehprProg, done = ehprOut, debug = 0)
+ invisible(runIntCodeComputer(list(
+     list(
+         tape = tape,
+         iccin = ehprProg,
+         iccout = ehprProg,
+         done = ehprOut))))
 
- cells <- as.list(environment(ehprProg))$cells
+ ehprProg <- ehpr(1)
 
- xr <- cells[, range(x)]
- xoff <- xr[1]
+ ehprOut2 <- function(tape) {
+     cells <- as.list(environment(ehprProg))$cells
 
- yr <- cells[, range(y)]
- yoff <- yr[1]
+     xr <- cells[, range(x)]
+     xoff <- xr[1]
 
- pxls <- matrix(" ", yr[2] - yoff + 1, xr[2] - xoff + 1)
+     yr <- cells[, range(y)]
+     yoff <- yr[1]
 
- for(i in seq(cells[, .N])) {
-   pxls[cells[i, y - yoff + 1], cells[i, x - xoff + 1]] <- cells[i, ifelse(color == 0, " ", "*")]
+     pxls <- matrix(" ", yr[2] - yoff + 1, xr[2] - xoff + 1)
+
+     for(i in seq(cells[, .N])) {
+         pxls[cells[i, y - yoff + 1], cells[i, x - xoff + 1]] <- cells[i, ifelse(color == 0, " ", "*")]
+     }
+
+     cat(paste(rev(apply(pxls, 1, paste, collapse = "")), collapse = "\n"))
  }
 
- cat(paste(rev(apply(pxls, 1, paste, collapse = "")), collapse = "\n"))
+ invisible(runIntCodeComputer(list(
+     list(
+         tape = tape,
+         iccin = ehprProg,
+         iccout = ehprProg,
+         done = ehprOut2))))
+
 }

@@ -1,4 +1,4 @@
-day1 <- function(input_path) {
+day1 <- function(input_path = "inst/input/day1/input.txt") {
   masses <- as.numeric(readLines(input_path))
   fuel_per_module <- floor(masses/3)-2
   fuel_required <- sum(fuel_per_module)

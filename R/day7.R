@@ -1,5 +1,5 @@
-day7 <- function(path) {
-  tape <- as.numeric(strsplit(readLines(path), ",")[[1]])
+day7 <- function(path = "inst/input/day7/input.txt") {
+  tape <- readICCTape(path)
 
   getPerms <- function(v) {
     if(length(v) == 1) {
@@ -24,16 +24,36 @@ day7 <- function(path) {
     pipeCD <- iccPipe(perm[4])
     pipeDE <- iccPipe(perm[5])
 
-    runIntCodeComputer(tape, iccin = pipeEA, iccout = pipeAB)
-    runIntCodeComputer(tape, iccin = pipeAB, iccout = pipeBC)
-    runIntCodeComputer(tape, iccin = pipeBC, iccout = pipeCD)
-    runIntCodeComputer(tape, iccin = pipeCD, iccout = pipeDE)
-    runIntCodeComputer(tape,
-                       iccin = pipeDE,
-                       iccout = pipeEA,
-                       done = function(tape) {
-                         permDone(latestOut)
-                       })
+    runIntCodeComputer(list(
+      list(
+        tape = tape,
+        iccin = pipeEA,
+        iccout = pipeAB
+      ),
+      list(
+        tape = tape,
+        iccin = pipeAB,
+        iccout = pipeBC
+      ),
+      list(
+        tape = tape,
+        iccin = pipeBC,
+        iccout = pipeCD
+      ),
+      list(
+        tape = tape,
+        iccin = pipeCD,
+        iccout = pipeDE
+      ),
+      list(
+        tape = tape,
+        iccin = pipeDE,
+        iccout = pipeEA,
+        done = function(tape) {
+          permDone(latestOut)
+        }
+      )
+    ))
   }
 
   acc <- iccOutputAccumulator()

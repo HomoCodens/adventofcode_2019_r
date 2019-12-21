@@ -1,4 +1,4 @@
-day4 <- function(path) {
+day4 <- function(path = "inst/input/day4/input.txt") {
   range <- as.numeric(strsplit(readLines(path), "-")[[1]])
 
   isPasswordOK <- function(p, part = 1) {

@@ -1,5 +1,5 @@
 #' @import data.table
-day3 <- function(path) {
+day3 <- function(path = "inst/input/day3/input.txt") {
   wires <- readLines(path)
 
   parseWire <- function(wire, id) {

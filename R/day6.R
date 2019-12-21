@@ -1,4 +1,4 @@
-day6 <- function(path) {
+day6 <- function(path = "inst/input/day6/input.txt") {
   orbits <- fread(path, sep = ")", head = FALSE)
   names(orbits) <- c("orbitee", "orbiter")
 

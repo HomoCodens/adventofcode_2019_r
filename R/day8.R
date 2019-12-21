@@ -1,4 +1,4 @@
-day8 <- function(path) {
+day8 <- function(path = "inst/input/day8/input.txt") {
   digits <- as.numeric(strsplit(readLines(path), "")[[1]])
 
   w <- 25
@@ -26,5 +26,5 @@ day8 <- function(path) {
 
   image <- t(image)
 
-  cat(paste(apply(ifelse(image == 1, "▮", "▯" ),1, paste, collapse = ""), collapse = "\n"))
+  cat(paste(apply(ifelse(image == 1, "@", " " ),1, paste, collapse = ""), collapse = "\n"))
 }

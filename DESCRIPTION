@@ -9,7 +9,9 @@ Description: More about what it does (maybe more than one line)
 License: What license is it under?
 Depends:
   data.table,
-  data.tree
+  data.tree,
+  igraph,
+  datastructures
 Suggest:
   testthat
 Encoding: UTF-8
