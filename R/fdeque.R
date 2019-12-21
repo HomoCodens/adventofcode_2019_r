@@ -1,20 +1,21 @@
-fdeque <- function() {
+fdeque <- function(initialSize = 1) {
   # Welcome to side effect hell! *Mwahahahaaa*
 
 
   # state -------------------------------------------------------------------
 
-  head <- 1
+  head <- 0
   tail <- 1
   nElements <- 0
-  size <- 1  # Start at size 1 to avoid weird edge cases
-  data <- list(1)
+  size <- initialSize  # Start at size 1 to avoid weird edge cases
+  data <- vector("list", initialSize)
 
 
-  # helpers -----------------------------------------------------------------
+
+  # housekeeping ------------------------------------------------------------
 
   bumpHead <- function() {
-    head <<- ifelse(head == size, 1, head + 1)
+    head <<- (head %% size) + 1
   }
 
   dumpHead <- function() {
@@ -22,7 +23,7 @@ fdeque <- function() {
   }
 
   bumpTail <- function() {
-    tail <<- ifelse(tail == size, 1, tail + 1)
+    tail <<- (tail %% size) + 1
   }
 
   dumpTail <- function() {
@@ -41,8 +42,28 @@ fdeque <- function() {
       size <<- size*2
   }
 
+  # helpers -----------------------------------------------------------------
+
   empty <- function() {
     nElements == 0
+  }
+
+  contains <- function(x) {
+    if(any(data[1:head] == x)) {
+      return(TRUE)
+    } else if(tail > 1 && any(data[tail:size] == x)) {
+        return(TRUE)
+    }
+
+    return(FALSE)
+  }
+
+  values <- function() {
+    if(tail == 1) {
+      data[tail:head]
+    } else {
+      c(data[head:1], data[size:tail])
+    }
   }
 
   # front ops ---------------------------------------------------------------
@@ -107,6 +128,8 @@ fdeque <- function() {
     unshift = unshift,
     shift = shift,
     peekBack = peekBack,
-    empty = empty
+    empty = empty,
+    contains = contains,
+    values = values
   )
 }

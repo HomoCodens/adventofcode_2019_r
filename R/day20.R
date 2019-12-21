@@ -28,23 +28,24 @@ day20 <- function(path = "inst/input/day20/input.txt") {
 
 
   getNeighbours <- function(map, node, recursive = FALSE) {
-    y <- node$row
-    x <- node$col
-    l <- node$level
+    y <- node[1]
+    x <- node[2]
+    l <- node[3]
+    d <- node[4] + 1
 
-    neighbours <- rstack()
+    neighbours <- fdeque(initialSize = 8)
 
     if({xx <- map[y - 1, x]; length(xx) > 0 && xx != "#"}) {
-      neighbours <- insert_top(neighbours, data.frame(row = y - 1, col = x, level = l))
+      neighbours$push(c(y - 1, x, l, d))
     }
     if(y + 1 <= nrow(map) && {xx <- map[y + 1, x]; xx != "#"}) {
-      neighbours <- insert_top(neighbours, data.frame(row = y + 1, col = x, level = l))
+      neighbours$push(c(y + 1, x, l, d))
     }
     if({xx <- map[y, x - 1]; length(xx) > 0 && xx != "#"}) {
-      neighbours <- insert_top(neighbours, data.frame(row = y, col = x - 1, level = l))
+      neighbours$push(c(y, x - 1, l, d))
     }
     if(x + 1 <= ncol(map) && {xx <- map[y, x + 1]; xx != "#"}) {
-      neighbours <- insert_top(neighbours, data.frame(row = y, col = x + 1, level = l))
+      neighbours$push(c(y, x + 1, l, d))
     }
 
     # If on a portal
@@ -53,98 +54,100 @@ day20 <- function(path = "inst/input/day20/input.txt") {
 
       #message("Zooming through ", map[y, x])
       portalLocations <- which(map == map[y, x], arr.ind = TRUE)
-      otherEnd <- data.frame(as.list(
-        portalLocations[!apply(portalLocations, 1, function(x)x["row"] == node$row && x["col"] == node$col), ]))
+      otherEnd <- portalLocations[!apply(portalLocations, 1, function(x)x["row"] == node[1] && x["col"] == node[2]), ]
+      otherEnd <- c(otherEnd, l, d)
 
       portalPermitted <- FALSE
-      otherEnd$level <- node$level
       if(recursive) {
-        if(otherEnd$row == 1 || otherEnd$row == nrow(map) ||
-           otherEnd$col == 1 || otherEnd$col == ncol(map)) {
+        if(otherEnd[1] == 1 || otherEnd[1] == nrow(map) ||
+           otherEnd[2] == 1 || otherEnd[2] == ncol(map)) {
           # Outer portal, move up
-          otherEnd$level <- node$level + 1
+          otherEnd[3] <- l + 1
           portalPermitted <- TRUE
-        } else if(l > 0 && otherEnd$row > 1 && otherEnd$col > 1) {
-          otherEnd$level <- node$level - 1
+        } else if(l > 0 && otherEnd[1] > 1 && otherEnd[2] > 1) {
+          otherEnd[3] <- l - 1
           portalPermitted <- TRUE
         }
       }
       if(portalPermitted || !recursive) {
-        neighbours <- insert_top(neighbours, otherEnd)
+        neighbours$push(otherEnd)
       }
     }
 
-    as.data.frame(neighbours)
+    neighbours$values()
   }
 
   getNodeId <- function(node, suffix) {
-    paste(c(node, suffix), collapse = "-")
+    #paste(c(node, suffix), collapse = "-")
+    sprintf("%d-%d-%d-%s", node[1], node[2], node[3], suffix)
   }
 
   doTheThing <- function(map, recursive = FALSE) {
-    if(recursive && grepl(path, "example2")) {
+    if(recursive && grepl("example2", path)) {
       stop("Nope, that won't work!")
     }
 
-    start <- data.frame(which(map == "AA", arr.ind = TRUE))
-    start$level <- 0
-    end <- data.frame(which(map == "ZZ", arr.ind = TRUE))
-    end$level <- 0
-    dists <- list()
-    dists[[getNodeId(start, "AA")]] <- 0
+    start <- c(which(map == "AA", arr.ind = TRUE), 0, 0)
+    end <- c(which(map == "ZZ", arr.ind = TRUE), 0, NA)
 
-    steps <- rstack()
+    steps <- fdeque()
 
-    edge <- rdeque()
-    edge <- insert_back(edge, start)
-    done <- list()
-    done[[getNodeId(start, "AA")]] <- TRUE
-    while(!all(peek_front(edge) == end)) {
-      node <- peek_front(edge)
+    edge <- fdeque()
+    edge$push(start)
+    done <- c(getNodeId(start, "AA"))
+    doneSize <- 1
+    doneElems <- 1
+    while(!all(edge$peekBack()[1:3] == end[1:3])) {
+      node <- edge$shift()
+      nodeId <- getNodeId(node, map[node[1], node[2]])
 
-      if(map[node$row, node$col] != ".") {
-        message("Pulsing... at node ", map[node$row, node$col])
-        print(node)
+      if(map[node[1], node[2]] != ".") {
+        message("Pulsing... at node ", nodeId)
       }
 
-
-      edge <- without_front(edge)
       neighbours <- getNeighbours(map, node, recursive)
-      nodeId <- getNodeId(node, map[node$row, node$col])
 
-
-      for(i in seq(nrow(neighbours))) {
-        id <- getNodeId(neighbours[i, ], map[neighbours[i, "row"], neighbours[i, "col"]])
-        steps <- insert_top(steps, data.frame(from = nodeId, to = id, stringsAsFactors = FALSE))
-        if(!is.null(done[[id]])) {
+      for(n in neighbours) {
+        id <- getNodeId(n, map[n[1], n[2]])
+        steps$push(c(nodeId, id))
+        if(id %in% done) {
           next;
         }
 
-        done[[id]] <- TRUE
-        dists[[id]] <- dists[[nodeId]] + 1
-        edge <- insert_back(edge, neighbours[i, ])
+        if(doneSize == doneElems) {
+          done <- c(done, vector("character", doneSize))
+          doneSize <- 2*doneSize
+        }
+
+        doneElems <- doneElems + 1
+        done[doneElems] <- id
+
+        edge$push(n)
       }
     }
 
     at <- getNodeId(end, "ZZ")
-    pathTaken <- rstack()
+    pathTaken <- fdeque()
     while(at != getNodeId(start, "AA")) {
-      pathTaken <- insert_top(pathTaken, at)
+      pathTaken$push(at)
 
-      nextStep <- peek_top(steps)
-      while(nextStep$to != at) {
-        steps <- without_top(steps)
-        nextStep <- peek_top(steps)
+      nextStep <- steps$pop()
+      while(nextStep[2] != at) {
+        nextStep <- steps$pop()
       }
-      at <- nextStep$from
+      at <- nextStep[1]
     }
 
 
-    message(dists[[getNodeId(end, "ZZ")]])
-    pathTaken
+    # Sorry, nothing to see here at the moment
+    # message("the last dist")
+    pathTaken$values()
   }
 
   #doTheThing(map, FALSE)
 
+  t0 <- Sys.time()
   aa <- doTheThing(map, TRUE)
+  t1 <- Sys.time()
+
 }
