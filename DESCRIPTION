@@ -11,7 +11,7 @@ Depends:
   data.table,
   data.tree,
   igraph,
-  rstackdeque
+  datastructures
 Suggest:
   testthat
 Encoding: UTF-8
