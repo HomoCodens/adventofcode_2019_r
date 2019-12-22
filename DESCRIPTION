@@ -12,6 +12,8 @@ Depends:
   data.tree,
   igraph,
   datastructures
+Imports:
+  gmp
 Suggest:
   testthat
 Encoding: UTF-8
