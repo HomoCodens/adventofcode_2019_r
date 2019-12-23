@@ -365,13 +365,104 @@ iccPipe <- function(initialBuffer = NULL, output = NULL) {
     } else {
       # Being used as input (data out)
       if(end < start) {
-        # We have no data ready, register the callback for later use
+        # We have no data ready
         NULL
       } else {
-        # There is data available, call callback immediately
+        # There is data available
         out <- buffer[start]
         start <<- start + 1
         out
+      }
+    }
+  }
+}
+
+# Aah, been looking forward to this since day 7! :D
+intErnet <- function(log = FALSE) { # Get it? ;P
+
+  buffers <- list()
+  idle <- vector("logical")
+  ipRange <- 0
+  NATPacket <- c(NA, NA)
+  lastNATSent <- c(-1, -1)
+
+  send <- function(ip, target, packet) {
+    if(log) {
+      message(sprintf("%02d -> %02d: %.0f, %.0f", ip, target, packet[1], packet[2]))
+    }
+    if(target == 255) {
+      if(log) {
+        message("NAT here, received packet ", paste(packet, collapse = "-"))
+      }
+      NATPacket <<- packet
+    } else {
+      target <- as.character(target)
+      for(v in packet) {
+        buffers[[target]](v)
+      }
+      idle[target] <<- FALSE
+    }
+  }
+
+  receive <- function(ip) {
+    if(all(idle) && !is.na(NATPacket[1])) {
+      if(log && NATPacket[2] == lastNATSent[2]) {
+        message("OHAI, this is the solution for part 2: ", NATPacket[2])
+      }
+      if(log) {
+        message("Oh noes, everybody is waiting...")
+        message("NAT to the rescue! Sending ", paste(NATPacket, collapse = "-"))
+      }
+      lastNATSent <<- NATPacket
+      send(255, 0, NATPacket)
+    }
+
+    ip <- as.character(ip)
+    v <- buffers[[ip]]()
+    if(!is.null(v)) {
+      idle[ip] <<- FALSE
+      return(v)
+    }
+
+    idle[ip] <<- TRUE
+    return(-1)
+  }
+
+  # Function to dial in
+  function() {
+    # play DHCP
+    ip <- ipRange
+    ipRange <<- ipRange + 1
+
+    # Set up that machines input buffer
+    buffers[[as.character(ip)]] <<- iccPipe(ip)
+
+    # Monitoring
+    idle <<- c(idle, FALSE)
+    names(idle) <<- as.character(0:ip) # Not technically super
+
+    # 0 - next input is IP of recipient
+    # 1 - next input is X of packet
+    # 2 - next input is Y of packet
+    state <- 0
+    recipient <- NA
+    X <- NA
+
+    # I/O function
+    function(vin = NULL) {
+      if(is.null(vin)) {
+        receive(ip)
+      } else {
+        if(state == 0) {
+          recipient <<- vin
+          state <<- 1
+        } else if(state == 1) {
+          X <<- vin
+          state <<- 2
+        } else {
+          send(ip, recipient, c(X, vin))
+          state <<- 0
+        }
       }
     }
   }
