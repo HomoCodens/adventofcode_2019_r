@@ -1,113 +1,285 @@
-## Sigh... R is so not the tool for this
 day18 <- function(path = "inst/input/day18/input.txt") {
   l <- readLines(path)
   map <- do.call(rbind, unlist(lapply(l, strsplit, ""), recursive = FALSE))
 
-  findAvailableKeys <- function(map, x, y) {
+  o <- which(map == "@")
+  xo <- col(map)[o]
+  yo <- row(map)[o]
+
+  getAdjacentNodes <- function(map, x, y) {
+
     edge <- fdeque()
     edge$push(c(x, y, 0))
 
-    visited <- matrix(FALSE, nrow(map), ncol(map))
-
-    keys <- fdeque()
+    done <- matrix(FALSE, nrow(map), ncol(map))
+    neighbours <- fdeque(32)
 
     dy <- c(0, 0, -1, 1)
     dx <- c(-1, 1, 0, 0)
 
-    freeTypes <- c(letters, ".", "@")
-    blockingTypes <- c(LETTERS, "#")
-    keyTypes <- letters
-
-    while(!edge$empty()) {
+    while(edge$size() > 0) {
       at <- edge$shift()
 
       x <- at[1]
       y <- at[2]
       dist <- at[3]
 
-      for(i in seq(4)) {
+      done[y, x] <- TRUE
+
+      for(i in 1:4) {
         xx <- x + dx[i]
         yy <- y + dy[i]
         cand <- map[yy, xx]
-        if(!cand %in% blockingTypes) {
-          id <- paste(c(xx, yy), collapse = "-")
-          message(id)
-          print(visited[yy, xx])
-          if(!visited[yy, xx]) {
+        if(cand != "#" && !done[yy, xx]) {
+          if(cand != ".") {
+            neighbours$push(list(symbol = cand, dist = dist + 1))
+          }
+
+          if(!cand %in% LETTERS) {
             edge$push(c(xx, yy, dist + 1))
-
-            if(cand %in% keyTypes) {
-              keys$push(list(x = xx, y = yy, dist = dist + 1, keyId = cand))
-            }
-
-            visited[yy, xx] <- TRUE
           }
         }
       }
     }
+    rbindlist(neighbours$values())
+  }
 
-    keys$values()
+
+  # 1) Build a graph of every Thing worth visiting + distances --------------
+  edges <- fdeque()
+
+  for(node in which(!map %in% c("#", "."))) {
+    xo <- col(map)[node]
+    yo <- row(map)[node]
+    neighbourhood <- getAdjacentNodes(map, xo, yo)
+    neighbourhood$from <- map[node]
+    edges$push(neighbourhood)
+  }
+
+  edges <- rbindlist(edges$values())[, .(from, to = symbol, dist)]
+
+  # getAdjacentNodes of graph representation
+  walkTheGraph <- function(graph, from, keys) {
+    openDoors <- toupper(keys)
+    edge <- fdeque()
+    edge$push(list(from, 0))
+
+    reachables <- fdeque()
+
+    done <- vector(length = nrow(graph))
+    names(done) <- graph[, unique(from)]
+
+    while(edge$size() > 0) {
+      at <- edge$shift()
+
+      node <- at[[1]]
+      d <- at[[2]]
+
+      done[node] <- TRUE
+
+      neighbours <- graph[from == node]
+      # Whee, data.tables
+      for(i in 1:nrow(neighbours)) {
+        to <- neighbours[i, to]
+        dist <- neighbours[i, dist]
+
+        if(!done[to]) {
+          if(to %in% letters && !to %in% keys) {
+            reachables$push(list(node = to, dist = d + dist))
+          }
+
+          done[to] <- TRUE
+
+          if(to %in% c(letters, openDoors)) {
+            edge$push(list(to, dist + d))
+          }
+        }
+      }
+      # neighbours[, {
+      #   message("Checking neighbour ", to)
+      #   if(!done[to]) {
+      #     message("Not been here yet...")
+      #     done[to] <- TRUE
+      #
+      #     reachables$push(list(to, dist + d))
+      #
+      #     if(to %in% c(letters, openDoors)) {
+      #       edge$push(list(to, dist + d))
+      #       message("Oh, passable... going on...", to)
+      #     }
+      #   }
+      # }, by = 1:nrow(neighbours)]
+    }
+    rbindlist(reachables$values())
   }
 
   quicksaves <- list()
   nCalls <- 0
 
-  doTheMarine <- function(map, keysFound = NULL) {
-    o <- which(map == "@")
-    x <- col(map)[o]
-    y <- row(map)[o]
-
-    if(length(o) == 0) {
-      return(0)
-    }
+  doTheMarine <- function(graph, at = "@", keysGathered = NULL) {
+    # I don't think there was quicksaving in Doom tho
+    worldId <- paste(c(keysGathered, "-", at), collapse = "")
 
     nCalls <<- nCalls + 1
-    if(!(nCalls %% 1)) {
+    if(nCalls %% 10 == 0) {
       message(nCalls)
-      message("Btw, we now have ", length(quicksaves), " saves to go on.")
-      if(length(quicksaves)) {
-        nHits <- sum(sapply(quicksaves, `[[`, "strikes"))
-        message("Those we have hit ", nHits, " times")
-        message(sprintf("Cache ratio: %.1f%%", 100*nHits/nCalls))
+      sqs <- length(quicksaves)
+      message("size of quicksaves: ", sqs)
+      if(sqs > 0) {
+        nHits <- sum(sapply(quicksaves, `[[`, "hits"))
+        message("Number of cache hits: ", nHits)
+        message(sprintf("Ratio: %.1f%%", 100*nHits/nCalls))
       }
     }
-
-    saveId <- paste(c(keysFound, o), collapse = "")
-    #message(saveId)
-    if(!is.null(quicksaves[[saveId]])) {
-      #message("Struck the cache!")
-      quicksaves[[saveId]]$strikes <<- quicksaves[[saveId]]$strikes + 1
-      return(quicksaves[[saveId]]$value)
+    if(!is.null(quicksaves[[worldId]])) {
+      #message("Ohai, a cache!")
+      quicksaves[[worldId]]$hits <<- quicksaves[[worldId]]$hits + 1
+      return(quicksaves[[worldId]]$value)
     } else {
-      keys <- findAvailableKeys(map, x, y)
-      map[o] <- "."
+      reachableKeys <- walkTheGraph(graph, at, keysGathered)
 
-      out <- 0
-      if(length(keys) > 0) {
-        optimum <- Inf
-        for(key in keys) {
-          newMap <- map
-          newMap[newMap == toupper(key$keyId)] <- "."
-          newMap[newMap == key$keyId] <- "."
-          newMap[key$y, key$x] <- "@"
-          d <- doTheMarine(newMap, sort(c(keysFound, key$keyId)))
-          if(d + key$dist < optimum) {
-            optimum <- d + key$dist
-          }
-        }
-        out <- optimum
+      if(reachableKeys[, .N == 0]) {
+        return(0)
       }
-      quicksaves[[saveId]] <<- list(
-        value = out,
-        strikes = 0
-      )
 
-      return(out)
+      optimum <- Inf
+      for(i in 1:nrow(reachableKeys)) {
+        d <- doTheMarine(graph, reachableKeys[i, node], sort(c(keysGathered, reachableKeys[i, node])))
+
+        dist <- reachableKeys[i, dist]
+
+        if(dist + d < optimum) {
+          optimum <- dist + d
+        }
+      }
+
+      quicksaves[[worldId]] <<- list(
+        value = optimum,
+        hits = 0)
+      return(optimum)
     }
   }
 
-  doTheMarine(map)
+  # Soo I just now realized that the @ symbolizes where we are... at *badum-tss*
+  doTheMarine(edges)
 }
+
+
+# ## Sigh... R is so not the tool for this
+# day18 <- function(path = "inst/input/day18/input.txt") {
+#   l <- readLines(path)
+#   map <- do.call(rbind, unlist(lapply(l, strsplit, ""), recursive = FALSE))
+#
+#   # Yes, it matters
+#   one2four <- seq(4)
+#
+#   findAvailableKeys <- function(map, x, y) {
+#     edge <- fdeque()
+#     edge$push(c(x, y, 0))
+#
+#     visited <- matrix(FALSE, nrow(map), ncol(map))
+#
+#     keys <- fdeque()
+#
+#     dy <- c(0, 0, -1, 1)
+#     dx <- c(-1, 1, 0, 0)
+#
+#     freeTypes <- c(letters, ".", "@")
+#     blockingTypes <- c(LETTERS, "#")
+#     keyTypes <- letters
+#
+#     while(!edge$empty()) {
+#       at <- edge$shift()
+#
+#       x <- at[1]
+#       y <- at[2]
+#       dist <- at[3]
+#
+#       for(i in one2four) {
+#         xx <- x + dx[i]
+#         yy <- y + dy[i]
+#         cand <- map[yy, xx]
+#         if(!cand %in% blockingTypes) {
+#           id <- sprintf("%d-%d", xx, yy)
+#           if(!visited[yy, xx]) {
+#             edge$push(c(xx, yy, dist + 1))
+#
+#             if(cand %in% keyTypes) {
+#               keys$push(list(x = xx, y = yy, dist = dist + 1, keyId = cand))
+#             }
+#
+#             visited[yy, xx] <- TRUE
+#           }
+#         }
+#       }
+#     }
+#
+#     keys$values()
+#   }
+#
+#   quicksaves <- list()
+#   nCalls <- 0
+#
+#   doTheMarine <- function(map, keysFound = NULL) {
+#     o <- which(map == "@")
+#     x <- col(map)[o]
+#     y <- row(map)[o]
+#
+#     nCalls <<- nCalls + 1
+#
+#     if(nCalls > 1000) {
+#       return(0)
+#     }
+#
+#     if(!(nCalls %% 100)) {
+#       message(nCalls)
+#       message("Btw, we now have ", length(quicksaves), " saves to go on.")
+#       if(length(quicksaves)) {
+#         nHits <- sum(sapply(quicksaves, `[[`, "strikes"))
+#         message("Those we have hit ", nHits, " times")
+#         message(sprintf("Cache ratio: %.1f%%", 100*nHits/nCalls))
+#       }
+#     }
+#
+#     saveId <- paste(c(keysFound, o), collapse = "")
+#     #message(saveId)
+#     if(!is.null(quicksaves[[saveId]])) {
+#       #message("Struck the cache!")
+#       quicksaves[[saveId]]$strikes <<- quicksaves[[saveId]]$strikes + 1
+#       return(quicksaves[[saveId]]$value)
+#     } else {
+#       keys <- findAvailableKeys(map, x, y)
+#       if(is.null(keys[[1]])) {
+#         return(0)
+#       }
+#       map[o] <- "."
+#
+#       out <- 0
+#       if(length(keys) > 0) {
+#         optimum <- Inf
+#         for(key in keys) {
+#           newMap <- map
+#           newMap[newMap == toupper(key$keyId)] <- "."
+#           newMap[newMap == key$keyId] <- "."
+#           newMap[key$y, key$x] <- "@"
+#           d <- doTheMarine(newMap, sort(c(keysFound, key$keyId)))
+#           if(d + key$dist < optimum) {
+#             optimum <- d + key$dist
+#           }
+#         }
+#         out <- optimum
+#       }
+#       quicksaves[[saveId]] <<- list(
+#         value = out,
+#         strikes = 0
+#       )
+#
+#       return(out)
+#     }
+#   }
+#
+#   doTheMarine(map)
+# }
 
 # day18 <- function(path = "inst/input/day18/input.txt") {
 #   l <- readLines(path)
