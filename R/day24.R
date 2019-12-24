@@ -75,7 +75,7 @@ day24 <- function(path = "inst/input/day24/input.txt") {
 
     if(dx == -1) {
       if(x - 1 == 0) {
-        return(bugs[[above]][2, 3])
+        return(bugs[[above]][3, 2])
       } else if(x - 1 == 3 && y == 3) {
         return(bugs[[below]][, gridDim])
       } else {
@@ -83,7 +83,7 @@ day24 <- function(path = "inst/input/day24/input.txt") {
       }
     } else if(dx == 1) {
       if(x + 1 == gridDim + 1) {
-        return(bugs[[above]][3, 1])
+        return(bugs[[above]][3, 4])
       } else if(x + 1 == 3 && y == 3) {
         return(bugs[[below]][, 1])
       } else {
@@ -142,6 +142,7 @@ day24 <- function(path = "inst/input/day24/input.txt") {
       for(x in 1:gridDim) {
         for(y in 1:gridDim) {
           if(!(x == 3 && y == 3)) {
+
             nNeigh <- countNeighboursRec(bugs, x, y, l)
             if(bugs[[ll]][y, x] == "#") {
               if(nNeigh == 1) {
@@ -172,15 +173,19 @@ day24 <- function(path = "inst/input/day24/input.txt") {
     }
   }
 
+  countBugsRec <- function(bugs) {
+    sum(sapply(bugs, function(b){sum(sum(b == "#"))}))
+  }
+
   p2Bugs <- list()
   p2Bugs[["0"]] <- bugs
 
-  cat("-------------------------------------\n")
-  cat(sprintf("Iteration %d\n", 0))
-  cat("-------------------------------------\n")
-  prntRec(p2Bugs)
 
   if(grepl("example", path)) {
+    cat("-------------------------------------\n")
+    cat(sprintf("Iteration %d\n", 0))
+    cat("-------------------------------------\n")
+    prntRec(p2Bugs)
     for(i in 1:10) {
       p2Bugs <- evolveRec(p2Bugs)
       cat("-------------------------------------\n")
@@ -188,6 +193,13 @@ day24 <- function(path = "inst/input/day24/input.txt") {
       cat("-------------------------------------\n")
       prntRec(p2Bugs)
     }
+  } else {
+    for(i in 1:200) {
+      cat("\014")
+      cat(sprintf("%03d...\n", i))
+      p2Bugs <- evolveRec(p2Bugs)
+    }
   }
+  message("There be ", countBugsRec(p2Bugs), " bugs in the system.")
 
 }
