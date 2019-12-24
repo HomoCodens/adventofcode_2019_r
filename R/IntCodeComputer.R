@@ -383,6 +383,7 @@ intErnet <- function(log = FALSE) { # Get it? ;P
   buffers <- list()
   idle <- vector("logical")
   ipRange <- 0
+  # TODO: Write a NAT program in intcode!
   NATPacket <- c(NA, NA)
   lastNATSent <- c(-1, -1)
 
@@ -408,6 +409,7 @@ intErnet <- function(log = FALSE) { # Get it? ;P
     if(all(idle) && !is.na(NATPacket[1])) {
       if(log && NATPacket[2] == lastNATSent[2]) {
         message("OHAI, this is the solution for part 2: ", NATPacket[2])
+        stop("Whoa there, halt the farm!")
       }
       if(log) {
         message("Oh noes, everybody is waiting...")
