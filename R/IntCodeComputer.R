@@ -297,20 +297,34 @@ iccFileInput <- function(con) {
   }
 }
 
-iccManualInput <- function() {
+iccManualInput <- function(ASCII = FALSE) {
+  buffer <- numeric(0)
+
   function() {
-    done <- FALSE
 
-    while(!done) {
-      x <- suppressWarnings(as.numeric(readline("icc> ")))
-      done <- !is.na(x) && as.integer(x) == x
+    if(!ASCII) {
+      done <- FALSE
 
-      if(!done) {
-        message("icc> Nope, please enter an integer...")
+      while(!done) {
+        x <- suppressWarnings(as.numeric(readline("icc> ")))
+        done <- !is.na(x) && as.integer(x) == x
+
+        if(!done) {
+          message("icc> Nope, please enter an integer...")
+        }
       }
-    }
 
-    x
+      x
+    } else {
+      if(length(buffer) == 0) {
+        x <- readline("icc> ")
+        buffer <<- c(as.numeric(sapply(strsplit(x, "")[[1]], charToRaw)), 10)
+      }
+
+      out <- buffer[1]
+      buffer <<- buffer[-1]
+      out
+    }
   }
 }
 
@@ -507,4 +521,8 @@ iccOutputAccumulator <- function(print = FALSE) {
 
   class(out) <- "iccOutputAccumulator"
   out
+}
+
+iccConsoleOutput <- function(x) {
+  cat(rawToChar(as.raw(x)))
 }
